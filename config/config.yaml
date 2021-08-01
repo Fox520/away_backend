@@ -1,0 +1,4 @@
+DB_HOST: localhost
+DB_PASSWORD: password
+DB_NAME: away
+DB_PORT: 5432
