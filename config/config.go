@@ -1,6 +1,10 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"os"
+
+	"github.com/spf13/viper"
+)
 
 type Config struct {
 	DBHost     string `mapstructure:"DB_HOST"`
@@ -10,9 +14,13 @@ type Config struct {
 }
 
 func LoadConfig() (cfg Config, err error) {
+	folder := os.Getenv("CONFIG_FOLDER_PATH")
+	if folder == "" {
+		folder = "C:/Users/Asus/Documents/prog/away_backend/config"
+	}
 	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
-	viper.AddConfigPath("../config")
+	viper.AddConfigPath(folder)
 	err = viper.ReadInConfig()
 
 	if err != nil {

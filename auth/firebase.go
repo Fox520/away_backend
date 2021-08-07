@@ -13,9 +13,13 @@ import (
 var logger = log.New(os.Stderr, "auth: ", log.LstdFlags|log.Lshortfile)
 
 func SetupFirebaseAuthClient() *auth.Client {
-	// Initialise auth client
+	serviceAccountKeyPath := os.Getenv("SERVICE_ACCOUNT_KEY_PATH")
+	if serviceAccountKeyPath == "" {
+		serviceAccountKeyPath = "C:/Users/Asus/Documents/prog/away_backend/config/serviceAccountKey.json"
+	}
 
-	opt := option.WithCredentialsFile("../config/serviceAccountKey.json")
+	// Initialise auth client
+	opt := option.WithCredentialsFile(serviceAccountKeyPath)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		logger.Print("Error initialising app", err)
