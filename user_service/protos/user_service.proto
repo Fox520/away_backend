@@ -39,12 +39,12 @@ message GetUserRequest {
 
 message GetUserResponse {
     oneof user_oneof {
-        User user = 1;
+        AwayUser user = 1;
         MinimalUserInfo minimalUser = 2;
     }
 }
 
-message User {
+message AwayUser {
     string id = 1;
     string userName = 2;
     string email = 3;

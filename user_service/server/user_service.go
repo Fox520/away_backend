@@ -84,7 +84,7 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	userId := meta[auth.ContextUIDKey]
 	var tempTime time.Time
 	if userId == ur.Id {
-		var user pb.User
+		var user pb.AwayUser
 		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
 			&user.UserName,
 			&user.Email,
