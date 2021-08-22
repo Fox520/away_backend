@@ -158,5 +158,8 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	if err != nil {
 		return nil, err
 	}
+	if err = auth.FirebaseAuth.DeleteUser(context.Background(), userId); err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
 	return &pb.DeleteUserResponse{}, nil
 }

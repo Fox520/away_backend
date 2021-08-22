@@ -67,18 +67,16 @@ func TestMain(m *testing.M) {
 			log.Fatalf("Server exited with error: %v", err)
 		}
 	}()
+	// Create test users on Firebase
+	testhelper.DeleteTestUsers()
+	testhelper.CreateUsers()
 	// Run the tests
 	os.Exit(m.Run())
 }
 
-const mainUserEmail string = "testing@email.com"
-const mainUserUID string = "Viism8HVdGfdhOcLUHEHqS7kA6m1"
-const mainUserName string = "Alice"
 const mainUserBio string = "main user bio"
 const mainUserDeviceToken string = "12345"
 
-const otherUserUID string = "zXiHzQfjmWf8Hte8L7RNEkNGf782"
-const otherUserName string = "Jane"
 const otherUserBio string = "other user bio"
 const otherUserDeviceToken string = "abcde"
 
@@ -102,13 +100,13 @@ func TestCreateUser(t *testing.T) {
 		}
 	})
 	t.Run("Create User", func(t *testing.T) {
-		_, err := client.CreateUser(mainUserCtx, &pb.CreateUserRequest{UserName: mainUserName, Bio: mainUserBio, DeviceToken: mainUserDeviceToken})
+		_, err := client.CreateUser(mainUserCtx, &pb.CreateUserRequest{UserName: testhelper.MainUser.DisplayName, Bio: mainUserBio, DeviceToken: mainUserDeviceToken})
 		if err != nil {
 			t.Fatalf("CreateUser failed: %v", err)
 		}
 	})
 	t.Run("Duplicate Create User", func(t *testing.T) {
-		_, err = client.CreateUser(mainUserCtx, &pb.CreateUserRequest{UserName: mainUserName, Bio: mainUserBio, DeviceToken: mainUserDeviceToken})
+		_, err = client.CreateUser(mainUserCtx, &pb.CreateUserRequest{UserName: testhelper.MainUser.DisplayName, Bio: mainUserBio, DeviceToken: mainUserDeviceToken})
 		st, ok := status.FromError(err)
 		if ok && st.Code() != codes.AlreadyExists {
 			t.Fatal("Duplicate user created")
@@ -116,7 +114,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("Create Secondary User ", func(t *testing.T) {
-		_, err := client.CreateUser(otherUserCtx, &pb.CreateUserRequest{UserName: otherUserName, Bio: otherUserBio, DeviceToken: otherUserDeviceToken})
+		_, err := client.CreateUser(otherUserCtx, &pb.CreateUserRequest{UserName: testhelper.OtherUser.DisplayName, Bio: otherUserBio, DeviceToken: otherUserDeviceToken})
 		if err != nil {
 			t.Fatalf("CreateUser failed: %v", err)
 		}
@@ -145,14 +143,14 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("Get own user", func(t *testing.T) {
-		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: mainUserUID})
+		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: testhelper.MainUser.UID})
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		switch u := res.UserOneof.(type) {
 		case *pb.GetUserResponse_User:
-			if u.User.Id != mainUserUID && u.User.Email != mainUserEmail && u.User.Bio != mainUserBio && u.User.UserName != mainUserName {
+			if u.User.Id != testhelper.MainUser.UID && u.User.Email != testhelper.MainUser.Email && u.User.Bio != mainUserBio && u.User.UserName != testhelper.MainUser.DisplayName {
 				t.Fatal("Fields do not match")
 			}
 		case *pb.GetUserResponse_MinimalUser:
@@ -161,7 +159,7 @@ func TestGetUser(t *testing.T) {
 	})
 
 	t.Run("Get minimal user", func(t *testing.T) {
-		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: otherUserUID})
+		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: testhelper.OtherUser.UID})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -171,7 +169,7 @@ func TestGetUser(t *testing.T) {
 			t.Fatal("Wrong message returned")
 
 		case *pb.GetUserResponse_MinimalUser:
-			if u.MinimalUser.Id != otherUserUID && u.MinimalUser.UserName != otherUserName && u.MinimalUser.Bio != otherUserBio {
+			if u.MinimalUser.Id != testhelper.OtherUser.UID && u.MinimalUser.UserName != testhelper.OtherUser.DisplayName && u.MinimalUser.Bio != otherUserBio {
 				t.Fatal("Fields do not match")
 			}
 		}
@@ -205,7 +203,7 @@ func TestUpdateUser(t *testing.T) {
 			t.Fatal("Could not update user")
 		}
 		// Check if new username reflects
-		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: mainUserUID})
+		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: testhelper.MainUser.UID})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -233,16 +231,30 @@ func TestDeleteUser(t *testing.T) {
 	client := pb.NewUserServiceClient(conn)
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "token", testhelper.GetMainUserAuthToken())
+	ctxOther := metadata.AppendToOutgoingContext(context.Background(), "token", testhelper.GetOtherUserAuthToken())
 
-	t.Run("Delete user", func(t *testing.T) {
+	t.Run("Delete primary user", func(t *testing.T) {
 		_, err = client.DeleteUser(ctx, &pb.DeleteUserRequest{})
 		if err != nil {
 			t.Fatal("Could not delete user: " + err.Error())
 		}
 		_, err = client.GetUser(ctx, &pb.GetUserRequest{})
 		st, ok := status.FromError(err)
-		if ok && st.Code() != codes.NotFound {
-			t.Fatal("Non-existant user found: " + fmt.Sprint(st.Code()))
+		if ok && st.Code() != codes.Unauthenticated {
+			t.Fatal("User not deleted: " + fmt.Sprint(st.Code()))
+		}
+	})
+
+	// Delete secondary user
+	t.Run("Delete secondary user", func(t *testing.T) {
+		_, err = client.DeleteUser(ctxOther, &pb.DeleteUserRequest{})
+		if err != nil {
+			t.Fatal("Could not delete user: " + err.Error())
+		}
+		_, err = client.GetUser(ctxOther, &pb.GetUserRequest{})
+		st, ok := status.FromError(err)
+		if ok && st.Code() != codes.Unauthenticated {
+			t.Fatal("User not deleted: " + fmt.Sprint(st.Code()))
 		}
 	})
 

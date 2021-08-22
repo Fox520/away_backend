@@ -2,16 +2,22 @@ package testhelper
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	fb_auth "firebase.google.com/go/auth"
+	away_auth "github.com/Fox520/away_backend/auth"
 )
 
 var webApiKey string = ""
+var MainUser *fb_auth.UserRecord
+var OtherUser *fb_auth.UserRecord
 
 // Returns token of a test user
 func GetMainUserAuthToken() string {
-	values := map[string]string{"email": "testing@email.com", "password": "123456", "returnSecureToken": "true"}
+	values := map[string]string{"email": MainUser.Email, "password": "123456", "returnSecureToken": "true"}
 	json_data, err := json.Marshal(values)
 
 	if err != nil {
@@ -33,7 +39,7 @@ func GetMainUserAuthToken() string {
 
 // Returns token of secondary test user
 func GetOtherUserAuthToken() string {
-	values := map[string]string{"email": "other@email.com", "password": "123456", "returnSecureToken": "true"}
+	values := map[string]string{"email": OtherUser.Email, "password": "123456", "returnSecureToken": "true"}
 	json_data, err := json.Marshal(values)
 
 	if err != nil {
@@ -51,4 +57,33 @@ func GetOtherUserAuthToken() string {
 
 	json.NewDecoder(resp.Body).Decode(&res)
 	return res["idToken"]
+}
+
+func CreateUsers() {
+
+	params := (&fb_auth.UserToCreate{}).Email("main@email.com").DisplayName("Alice").Password("123456").PhotoURL("https://www.example.com/photo.png").Disabled(false)
+	u, err := away_auth.FirebaseAuth.CreateUser(context.Background(), params)
+	if err != nil {
+		log.Fatalf("error creating user 1: %v\n", err)
+	}
+	MainUser = u
+
+	params2 := (&fb_auth.UserToCreate{}).Email("other@email.com").DisplayName("Jane").Password("123456").PhotoURL("https://www.example.com/photo.png").Disabled(false)
+	u, err = away_auth.FirebaseAuth.CreateUser(context.Background(), params2)
+	if err != nil {
+		log.Fatalf("error creating user 2: %v\n", err)
+	}
+	OtherUser = u
+
+}
+
+func DeleteTestUsers() {
+	if MainUser != nil {
+		away_auth.FirebaseAuth.DeleteUser(context.Background(), MainUser.UID)
+
+	}
+	if OtherUser != nil {
+		away_auth.FirebaseAuth.DeleteUser(context.Background(), OtherUser.UID)
+
+	}
 }
