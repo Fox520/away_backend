@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package property.service;
+option go_package = "./;property_service";
+
+import "google/protobuf/timestamp.proto";
+
+message Property {
+    string id = 1;
+    string userID = 2;
+    int32 propertyTypeID = 3;
+    string propertyType = 4;
+    int32 propertyCategoryID = 5;
+    string propertyCategory = 6;
+    int32 propertyUsageID = 7;
+    string propertyUsage = 8;
+    int32 bedrooms = 9;
+    int32 bathrooms = 10;
+    string surburb = 11;
+    string town = 12;
+    string title = 13;
+    string description = 14;
+    string currency = 15;
+    bool available = 16;
+    float price = 17;
+    float deposit = 18;
+    float sharingPrice = 19;
+    bool promoted = 20;
+    google.protobuf.Timestamp postedDate = 21;
+    bool petsAllowed = 22;
+    bool freeWifi = 23;
+    bool waterIncluded = 24;
+    bool electricityIncluded = 25;
+    float latitude = 26;
+    float longitude = 27;
+    repeated Photo photos = 28;
+}
+
+message MinimalProperty {
+    string id = 1;
+    int32 propertyTypeID = 2;
+    string propertyType = 3;
+    int32 propertyCategoryID = 4;
+    string propertyCategory = 5;
+    int32 propertyUsageID = 6;
+    string propertyUsage = 7;
+    int32 bedrooms = 8;
+    string title = 9;
+    string currency = 10;
+    float price = 11;
+    bool promoted = 12;
+    google.protobuf.Timestamp postedDate = 13;
+    repeated Photo photos = 14;
+}
+
+message Photo {
+    string id = 1;
+    string url = 2;
+    string propertyID = 3;
+}
+
+message FeaturedAreasRequest {
+    string country = 1;
+}
+
+message FeaturedAreasResponse {
+    repeated FeaturedArea featuredAreas = 1;
+}
+
+message FeaturedArea {
+    string title = 1;
+    string photoURL = 2;
+    float latitude = 3;
+    float longitude = 4;
+}
+
+message PromotedRequest {
+    float latitude = 1;
+    float longitude = 2;
+    float radius = 3;
+}
+
+message PromotedResponse {
+    repeated MinimalProperty properties = 1;
+}
+
+message DeletePropertyRequest{
+    string propertyID = 1;
+
+}
+
+message DeletePropertyResponse{
+    bool status = 1;
+}
+
+message GetSinglePropertyRequest {
+    string id = 1;
+}
+
+message GetSinglePropertyResponse {
+    Property property = 1;
+}
+
+message GetMultiplePropertyRequest {
+    float latitude = 1;
+    float longitude = 2;
+    float radius = 3;
+}
+
+message GetMultiplePropertyResponse {
+    repeated Property properties = 1;
+}
+
+message CreatePropertyRequest {
+    Property property = 1;
+}
+
+message GetMinimalPropertiesRequest {
+    float latitude = 1;
+    float longitude = 2;
+    float radius = 3;
+}
+
+message GetMinimalPropertiesResponse {
+    repeated MinimalProperty properties = 1;
+}
+
+message GetUserPropertiesRequest {
+    string userID = 1;
+}
+
+message GetUserPropertiesResponse {
+    repeated Property properties = 1;
+}
+
+
+service PropertyService {
+    rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){};
+    rpc GetMinimalInfoPropertiesStream (stream GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){}; // Useful when navigating on map
+    rpc GetSingleProperty (GetSinglePropertyRequest) returns (GetSinglePropertyResponse){};
+    rpc GetUserProperties (GetUserPropertiesRequest) returns (GetUserPropertiesResponse){};
+    rpc GetMultipleProperties (GetMultiplePropertyRequest) returns (GetMultiplePropertyResponse){};
+    rpc CreateProperty (CreatePropertyRequest) returns (Property){};
+    rpc UpdateProperty (Property) returns (Property){};
+    rpc DeleteProperty (DeletePropertyRequest) returns (DeletePropertyResponse){};
+    rpc GetFeaturedAreas (FeaturedAreasRequest) returns (FeaturedAreasResponse){};
+    rpc GetPromotedProperties (PromotedRequest) returns (PromotedResponse){};
+}
