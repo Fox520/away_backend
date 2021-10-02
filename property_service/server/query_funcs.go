@@ -30,7 +30,8 @@ func minimalQuery(DB *sql.DB, lat float32, lng float32, radius float32, isPromot
 			p.title,
 			p.currency,
 			p.price,
-			p.posted_date
+			p.posted_date,
+			p.user_id
 		FROM
 			properties p,
 			lateral(SELECT id, p_type FROM property_type WHERE id = p.property_type_id) as ptype,
@@ -64,6 +65,7 @@ func minimalQuery(DB *sql.DB, lat float32, lng float32, radius float32, isPromot
 			&property.Currency,
 			&property.Price,
 			&tempTime,
+			&property.UserID,
 		)
 		if err != nil {
 			continue

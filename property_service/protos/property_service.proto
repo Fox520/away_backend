@@ -52,6 +52,7 @@ message MinimalProperty {
     bool promoted = 12;
     google.protobuf.Timestamp postedDate = 13;
     repeated Photo photos = 14;
+    string userID = 15;
 }
 
 message Photo {
@@ -82,7 +83,7 @@ message PromotedRequest {
 }
 
 message PromotedResponse {
-    repeated MinimalProperty properties = 1;
+    repeated SingleMinimalProperty properties = 1;
 }
 
 message DeletePropertyRequest{
@@ -110,7 +111,7 @@ message GetMultiplePropertyRequest {
 }
 
 message GetMultiplePropertyResponse {
-    repeated Property properties = 1;
+    repeated GetSinglePropertyResponse responses = 1;
 }
 
 message CreatePropertyRequest {
@@ -124,7 +125,12 @@ message GetMinimalPropertiesRequest {
 }
 
 message GetMinimalPropertiesResponse {
-    repeated MinimalProperty properties = 1;
+    repeated SingleMinimalProperty properties = 1;
+}
+
+message SingleMinimalProperty {
+    MinimalProperty property = 1;
+    user.service.GetUserResponse owner = 2;
 }
 
 message GetUserPropertiesRequest {

@@ -5,23 +5,30 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
 	pb "github.com/Fox520/away_backend/property_service/github.com/Fox520/away_backend/property_service/pb"
+	user_pb "github.com/Fox520/away_backend/user_service/pb"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+var logger = log.New(os.Stderr, "property_service: ", log.LstdFlags|log.Lshortfile)
+
 type PropertyServiceServer struct {
 	pb.UnimplementedPropertyServiceServer
-	DB *sql.DB
+	DB         *sql.DB
+	UserClient user_pb.UserServiceClient
 }
 
-func NewPropertyServiceServer(cfg config.Config) *PropertyServiceServer {
+func NewPropertyServiceServer(cfg config.Config, userClient user_pb.UserServiceClient) *PropertyServiceServer {
 	connectionString := fmt.Sprintf(`host=%s user=postgres password=%s dbname=%s port=%s sslmode=disable`,
 		cfg.DBHost, cfg.DBPassword, cfg.DBName, cfg.DBPort)
 	db, err := sql.Open("postgres", connectionString)
@@ -32,10 +39,11 @@ func NewPropertyServiceServer(cfg config.Config) *PropertyServiceServer {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Successfully connected to DB!")
+	logger.Println("Successfully connected to DB!")
 
 	return &PropertyServiceServer{
-		DB: db,
+		DB:         db,
+		UserClient: userClient,
 	}
 
 }
@@ -135,6 +143,18 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 		propertyResponse.Property.Photos = append(propertyResponse.Property.Photos, &pb.Photo{Id: id, Url: url, PropertyID: propId})
 
 	}
+	// Attempt adding user profile
+	meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
+
+	token := meta[auth.ContextTokenKey]
+	md := metadata.New(map[string]string{"token": token})
+	requestContext := metadata.NewOutgoingContext(ctx, md)
+	res, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: propertyResponse.Property.UserID})
+	if err == nil {
+		propertyResponse.Owner = res
+	} else {
+		logger.Println(err)
+	}
 	return &propertyResponse, nil
 }
 
@@ -163,7 +183,7 @@ func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, 
 			p.surburb,
 			p.town,
 			p.title,
-			p.description,
+			p.p_description,
 			p.currency,
 			p.available,
 			p.price,
@@ -206,6 +226,8 @@ func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, 
 	}
 	for propertyRows.Next() {
 		var property pb.Property
+		var response pb.GetSinglePropertyResponse
+
 		err = propertyRows.Scan(&property.Id,
 			&property.UserID,
 			&property.PropertyType,
@@ -252,7 +274,22 @@ func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, 
 			property.Photos = append(property.Photos, &pb.Photo{Id: id, Url: url, PropertyID: propId})
 
 		}
-		propertiesResponse.Properties = append(propertiesResponse.Properties, &property)
+		response.Property = &property
+
+		// Attempt adding user profile
+		meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
+
+		token := meta[auth.ContextTokenKey]
+		md := metadata.New(map[string]string{"token": token})
+		requestContext := metadata.NewOutgoingContext(ctx, md)
+		logger.Println("network request")
+		res, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: property.UserID})
+		if err == nil {
+			response.Owner = res
+		} else {
+			logger.Println(err)
+		}
+		propertiesResponse.Responses = append(propertiesResponse.Responses, &response)
 	}
 
 	return &propertiesResponse, nil
@@ -267,11 +304,27 @@ func (server *PropertyServiceServer) GetMinimalProperties(ctx context.Context, p
 	radius = radius * 1000
 
 	var propertiesResponse pb.GetMinimalPropertiesResponse
-	res, err := minimalQuery(server.DB, pm.Latitude, pm.Longitude, radius, false)
+	properties, err := minimalQuery(server.DB, pm.Latitude, pm.Longitude, radius, false)
 	if err != nil {
 		return nil, err
 	}
-	propertiesResponse.Properties = res
+	meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
+
+	token := meta[auth.ContextTokenKey]
+	md := metadata.New(map[string]string{"token": token})
+	requestContext := metadata.NewOutgoingContext(ctx, md)
+	for _, prop := range properties {
+		// Attempt adding user profile
+		userResponse, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: prop.UserID})
+		if err != nil {
+			logger.Println(err)
+		}
+		propertiesResponse.Properties = append(propertiesResponse.Properties, &pb.SingleMinimalProperty{
+			Property: prop,
+			Owner:    userResponse,
+		})
+	}
+
 	return &propertiesResponse, nil
 
 }
@@ -285,11 +338,26 @@ func (server *PropertyServiceServer) GetPromotedProperties(ctx context.Context, 
 	radius = radius * 1000
 
 	var promotedResponse pb.PromotedResponse
-	res, err := minimalQuery(server.DB, pr.Latitude, pr.Longitude, radius, true)
+	properties, err := minimalQuery(server.DB, pr.Latitude, pr.Longitude, radius, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	promotedResponse.Properties = res
+	meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
+
+	token := meta[auth.ContextTokenKey]
+	md := metadata.New(map[string]string{"token": token})
+	requestContext := metadata.NewOutgoingContext(ctx, md)
+	for _, prop := range properties {
+		// Attempt adding user profile
+		userResponse, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: prop.UserID})
+		if err != nil {
+			logger.Println(err)
+		}
+		promotedResponse.Properties = append(promotedResponse.Properties, &pb.SingleMinimalProperty{
+			Property: prop,
+			Owner:    userResponse,
+		})
+	}
 
 	return &promotedResponse, nil
 }
