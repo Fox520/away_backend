@@ -22,7 +22,7 @@ import (
 
 var logger = log.New(os.Stderr, "user_service: ", log.LstdFlags|log.Lshortfile)
 
-const ES_TIMEOUT time.Duration = 500 * time.Millisecond
+const ES_TIMEOUT time.Duration = 600 * time.Millisecond
 
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
