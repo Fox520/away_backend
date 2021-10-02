@@ -1,9 +1,10 @@
 syntax = "proto3";
 
 package property.service;
-option go_package = "./;property_service";
+option go_package = "github.com/Fox520/away_backend/property_service/pb"; //golang
 
 import "google/protobuf/timestamp.proto";
+import "user_service.proto";
 
 message Property {
     string id = 1;
@@ -99,6 +100,7 @@ message GetSinglePropertyRequest {
 
 message GetSinglePropertyResponse {
     Property property = 1;
+    user.service.GetUserResponse owner = 2;
 }
 
 message GetMultiplePropertyRequest {
