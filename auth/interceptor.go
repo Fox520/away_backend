@@ -14,6 +14,7 @@ type key string
 const ContextMetaDataKey key = "metadata"
 const ContextEmailKey string = "auth.email"
 const ContextUIDKey string = "auth.uid"
+const ContextTokenKey string = "token"
 
 var FirebaseAuth = SetupFirebaseAuthClient()
 
@@ -52,6 +53,7 @@ func AuthInterceptor(ctx context.Context) (context.Context, error) {
 	payload := map[string]string{
 		ContextEmailKey: email,
 		ContextUIDKey:   uid,
+		ContextTokenKey: token,
 	}
 	newCtx := context.WithValue(ctx, ContextMetaDataKey, payload)
 
