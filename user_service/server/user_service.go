@@ -55,12 +55,16 @@ func (server *UserServiceServer) CreateUser(ctx context.Context, req *pb.CreateU
 	if strings.ReplaceAll(req.UserName, " ", "") == "" {
 		return nil, status.Error(codes.InvalidArgument, "Not all fields have data")
 	}
-
+	pic := req.ProfilePictureUrl
+	// Apple Sign In doesn't provide it again should the user re-register.
+	if pic == "" {
+		pic = "https://github.com/Fox520/Assets/blob/main/blank-profile-picture-g99784d5a8_640.png?raw=true"
+	}
 	sqlStatement := `
-		INSERT INTO users (id, username, email, device_token, bio, verified, s_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, username, email, device_token, bio, verified, s_status, profile_picture_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
-	_, err := server.DB.Exec(sqlStatement, userId, req.UserName, email, req.DeviceToken, req.Bio, false, "NONE")
+	_, err := server.DB.Exec(sqlStatement, userId, req.UserName, email, req.DeviceToken, req.Bio, false, "NONE", pic)
 	if err != nil {
 		if err, ok := err.(*pq.Error); ok {
 			// https://www.postgresql.org/docs/9.3/errcodes-appendix.html
@@ -85,7 +89,7 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	var tempTime time.Time
 	if userId == ur.Id {
 		var user pb.AwayUser
-		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
+		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
 			&user.UserName,
 			&user.Email,
 			&user.Bio,
@@ -93,6 +97,7 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 			&user.Verified,
 			&user.SubscriptionStatus,
 			&tempTime,
+			&user.ProfilePictureUrl,
 		)
 		if err != nil {
 			logger.Print("User not found: ", err)
@@ -106,12 +111,13 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 		}, nil
 	}
 	var minimalUserInfo pb.MinimalUserInfo
-	err := server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
+	err := server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
 		&minimalUserInfo.Id,
 		&minimalUserInfo.UserName,
 		&minimalUserInfo.Bio,
 		&minimalUserInfo.Verified,
 		&tempTime,
+		&minimalUserInfo.ProfilePictureUrl,
 	)
 	if err != nil {
 		logger.Print("User not found [minimal]", err)
@@ -135,9 +141,9 @@ func (server *UserServiceServer) UpdateUser(ctx context.Context, in *pb.UpdateUs
 	}
 
 	sqlStatement := `
-		UPDATE users SET username = $1, bio = $2, device_token = $3 WHERE id = $4
+		UPDATE users SET username = $1, bio = $2, device_token = $3, profile_picture_url = $4 WHERE id = $5
 	`
-	_, err := server.DB.Exec(sqlStatement, in.UserName, in.Bio, in.DeviceToken, userId)
+	_, err := server.DB.Exec(sqlStatement, in.UserName, in.Bio, in.DeviceToken, in.ProfilePictureUrl, userId)
 	if err != nil {
 		logger.Print("update error: ", err)
 		return nil, status.Error(codes.Internal, "Could not update user")

@@ -9,6 +9,7 @@ message CreateUserRequest {
     string userName = 1;
     string bio = 2;
     string deviceToken = 3;
+    string profilePictureUrl = 4;
 }
 
 message CreateUserResponse {
@@ -19,6 +20,7 @@ message UpdateUserRequest {
     string userName = 1;
     string bio = 2;
     string deviceToken = 3;
+    string profilePictureUrl = 4;
 }
 
 message UpdateUserResponse {
@@ -53,6 +55,7 @@ message AwayUser {
     bool verified = 6;
     string subscriptionStatus = 7;
     google.protobuf.Timestamp createdAt = 8;
+    string profilePictureUrl = 9;
 }
 
 message MinimalUserInfo {
@@ -61,6 +64,7 @@ message MinimalUserInfo {
     string bio = 3;
     bool verified = 4;
     google.protobuf.Timestamp createdAt = 5;
+    string profilePictureUrl = 6;
 }
 
 service UserService {

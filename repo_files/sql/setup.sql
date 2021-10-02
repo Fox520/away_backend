@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users(
     bio TEXT,
     verified BOOLEAN,
     s_status VARCHAR(255) NOT NULL,
+    profile_picture_url VARCHAR,
     createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc'),
     PRIMARY KEY (id),
     CONSTRAINT fk_subscription_status
