@@ -40,7 +40,10 @@ func TestMain(m *testing.M) {
 
 	// Setup database
 	ctx := context.Background()
-	container, port, _ := testhelper.CreateTestContainer(ctx, cfg)
+	container, port, err := testhelper.CreateTestContainer(ctx, cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer container.Terminate(ctx)
 
 	// migration
