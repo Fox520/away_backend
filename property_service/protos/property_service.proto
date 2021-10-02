@@ -125,7 +125,7 @@ message GetMinimalPropertiesRequest {
 }
 
 message GetMinimalPropertiesResponse {
-    repeated SingleMinimalProperty properties = 1;
+    SingleMinimalProperty singleMinimalProperty = 1;
 }
 
 message SingleMinimalProperty {
@@ -143,8 +143,7 @@ message GetUserPropertiesResponse {
 
 
 service PropertyService {
-    rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){};
-    rpc GetMinimalInfoPropertiesStream (stream GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){}; // Useful when navigating on map
+    rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (stream GetMinimalPropertiesResponse){}; // Useful when navigating on map
     rpc GetSingleProperty (GetSinglePropertyRequest) returns (SinglePropertyResponse){};
     rpc GetUserProperties (GetUserPropertiesRequest) returns (GetUserPropertiesResponse){};
     rpc GetMultipleProperties (GetMultiplePropertyRequest) returns (stream GetMultiplePropertyResponse){};

@@ -293,37 +293,38 @@ func (server *PropertyServiceServer) GetMultipleProperties(req *pb.GetMultiplePr
 	return nil
 }
 
-func (server *PropertyServiceServer) GetMinimalProperties(ctx context.Context, pm *pb.GetMinimalPropertiesRequest) (*pb.GetMinimalPropertiesResponse, error) {
-	radius := pm.Radius
+// req *pb.GetMultiplePropertyRequest, stream pb.PropertyService_GetMultiplePropertiesServer
+func (server *PropertyServiceServer) GetMinimalInfoProperties(req *pb.GetMinimalPropertiesRequest, stream pb.PropertyService_GetMinimalInfoPropertiesServer) error {
+	meta := stream.Context().Value(auth.ContextMetaDataKey).(map[string]string)
+
+	radius := req.Radius
 	if radius < 1 {
 		radius = 5
 	}
 	// Convert radius (km) to meters
 	radius = radius * 1000
 
-	var propertiesResponse pb.GetMinimalPropertiesResponse
-	properties, err := minimalQuery(server.DB, pm.Latitude, pm.Longitude, radius, false)
+	properties, err := minimalQuery(server.DB, req.Latitude, req.Longitude, radius, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
 
 	token := meta[auth.ContextTokenKey]
 	md := metadata.New(map[string]string{"token": token})
-	requestContext := metadata.NewOutgoingContext(ctx, md)
+	requestContext := metadata.NewOutgoingContext(stream.Context(), md)
 	for _, prop := range properties {
 		// Attempt adding user profile
 		userResponse, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: prop.UserID})
 		if err != nil {
 			logger.Println(err)
 		}
-		propertiesResponse.Properties = append(propertiesResponse.Properties, &pb.SingleMinimalProperty{
+		stream.Send(&pb.GetMinimalPropertiesResponse{SingleMinimalProperty: &pb.SingleMinimalProperty{
 			Property: prop,
 			Owner:    userResponse,
-		})
+		}})
 	}
 
-	return &propertiesResponse, nil
+	return nil
 
 }
 

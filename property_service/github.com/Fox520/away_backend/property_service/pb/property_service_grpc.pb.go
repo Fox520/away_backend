@@ -18,8 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PropertyServiceClient interface {
-	GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (*GetMinimalPropertiesResponse, error)
-	GetMinimalInfoPropertiesStream(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesStreamClient, error)
+	GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error)
 	GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*SinglePropertyResponse, error)
 	GetUserProperties(ctx context.Context, in *GetUserPropertiesRequest, opts ...grpc.CallOption) (*GetUserPropertiesResponse, error)
 	GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error)
@@ -38,42 +37,31 @@ func NewPropertyServiceClient(cc grpc.ClientConnInterface) PropertyServiceClient
 	return &propertyServiceClient{cc}
 }
 
-func (c *propertyServiceClient) GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (*GetMinimalPropertiesResponse, error) {
-	out := new(GetMinimalPropertiesResponse)
-	err := c.cc.Invoke(ctx, "/property.service.PropertyService/GetMinimalInfoProperties", in, out, opts...)
+func (c *propertyServiceClient) GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[0], "/property.service.PropertyService/GetMinimalInfoProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-func (c *propertyServiceClient) GetMinimalInfoPropertiesStream(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[0], "/property.service.PropertyService/GetMinimalInfoPropertiesStream", opts...)
-	if err != nil {
+	x := &propertyServiceGetMinimalInfoPropertiesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
-	x := &propertyServiceGetMinimalInfoPropertiesStreamClient{stream}
-	return x, nil
-}
-
-type PropertyService_GetMinimalInfoPropertiesStreamClient interface {
-	Send(*GetMinimalPropertiesRequest) error
-	CloseAndRecv() (*GetMinimalPropertiesResponse, error)
-	grpc.ClientStream
-}
-
-type propertyServiceGetMinimalInfoPropertiesStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *propertyServiceGetMinimalInfoPropertiesStreamClient) Send(m *GetMinimalPropertiesRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *propertyServiceGetMinimalInfoPropertiesStreamClient) CloseAndRecv() (*GetMinimalPropertiesResponse, error) {
 	if err := x.ClientStream.CloseSend(); err != nil {
 		return nil, err
 	}
+	return x, nil
+}
+
+type PropertyService_GetMinimalInfoPropertiesClient interface {
+	Recv() (*GetMinimalPropertiesResponse, error)
+	grpc.ClientStream
+}
+
+type propertyServiceGetMinimalInfoPropertiesClient struct {
+	grpc.ClientStream
+}
+
+func (x *propertyServiceGetMinimalInfoPropertiesClient) Recv() (*GetMinimalPropertiesResponse, error) {
 	m := new(GetMinimalPropertiesResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -180,8 +168,7 @@ func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, in *P
 // All implementations must embed UnimplementedPropertyServiceServer
 // for forward compatibility
 type PropertyServiceServer interface {
-	GetMinimalInfoProperties(context.Context, *GetMinimalPropertiesRequest) (*GetMinimalPropertiesResponse, error)
-	GetMinimalInfoPropertiesStream(PropertyService_GetMinimalInfoPropertiesStreamServer) error
+	GetMinimalInfoProperties(*GetMinimalPropertiesRequest, PropertyService_GetMinimalInfoPropertiesServer) error
 	GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error)
 	GetUserProperties(context.Context, *GetUserPropertiesRequest) (*GetUserPropertiesResponse, error)
 	GetMultipleProperties(*GetMultiplePropertyRequest, PropertyService_GetMultiplePropertiesServer) error
@@ -197,11 +184,8 @@ type PropertyServiceServer interface {
 type UnimplementedPropertyServiceServer struct {
 }
 
-func (UnimplementedPropertyServiceServer) GetMinimalInfoProperties(context.Context, *GetMinimalPropertiesRequest) (*GetMinimalPropertiesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMinimalInfoProperties not implemented")
-}
-func (UnimplementedPropertyServiceServer) GetMinimalInfoPropertiesStream(PropertyService_GetMinimalInfoPropertiesStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetMinimalInfoPropertiesStream not implemented")
+func (UnimplementedPropertyServiceServer) GetMinimalInfoProperties(*GetMinimalPropertiesRequest, PropertyService_GetMinimalInfoPropertiesServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetMinimalInfoProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSingleProperty not implemented")
@@ -240,48 +224,25 @@ func RegisterPropertyServiceServer(s grpc.ServiceRegistrar, srv PropertyServiceS
 	s.RegisterService(&PropertyService_ServiceDesc, srv)
 }
 
-func _PropertyService_GetMinimalInfoProperties_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMinimalPropertiesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PropertyServiceServer).GetMinimalInfoProperties(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/property.service.PropertyService/GetMinimalInfoProperties",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PropertyServiceServer).GetMinimalInfoProperties(ctx, req.(*GetMinimalPropertiesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PropertyService_GetMinimalInfoPropertiesStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(PropertyServiceServer).GetMinimalInfoPropertiesStream(&propertyServiceGetMinimalInfoPropertiesStreamServer{stream})
-}
-
-type PropertyService_GetMinimalInfoPropertiesStreamServer interface {
-	SendAndClose(*GetMinimalPropertiesResponse) error
-	Recv() (*GetMinimalPropertiesRequest, error)
-	grpc.ServerStream
-}
-
-type propertyServiceGetMinimalInfoPropertiesStreamServer struct {
-	grpc.ServerStream
-}
-
-func (x *propertyServiceGetMinimalInfoPropertiesStreamServer) SendAndClose(m *GetMinimalPropertiesResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *propertyServiceGetMinimalInfoPropertiesStreamServer) Recv() (*GetMinimalPropertiesRequest, error) {
+func _PropertyService_GetMinimalInfoProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(GetMinimalPropertiesRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	return m, nil
+	return srv.(PropertyServiceServer).GetMinimalInfoProperties(m, &propertyServiceGetMinimalInfoPropertiesServer{stream})
+}
+
+type PropertyService_GetMinimalInfoPropertiesServer interface {
+	Send(*GetMinimalPropertiesResponse) error
+	grpc.ServerStream
+}
+
+type propertyServiceGetMinimalInfoPropertiesServer struct {
+	grpc.ServerStream
+}
+
+func (x *propertyServiceGetMinimalInfoPropertiesServer) Send(m *GetMinimalPropertiesResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _PropertyService_GetSingleProperty_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -439,10 +400,6 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PropertyServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetMinimalInfoProperties",
-			Handler:    _PropertyService_GetMinimalInfoProperties_Handler,
-		},
-		{
 			MethodName: "GetSingleProperty",
 			Handler:    _PropertyService_GetSingleProperty_Handler,
 		},
@@ -473,9 +430,9 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GetMinimalInfoPropertiesStream",
-			Handler:       _PropertyService_GetMinimalInfoPropertiesStream_Handler,
-			ClientStreams: true,
+			StreamName:    "GetMinimalInfoProperties",
+			Handler:       _PropertyService_GetMinimalInfoProperties_Handler,
+			ServerStreams: true,
 		},
 		{
 			StreamName:    "GetMultipleProperties",
