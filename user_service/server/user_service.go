@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,7 @@ import (
 	config "github.com/Fox520/away_backend/config"
 	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
 	pq "github.com/lib/pq"
+	"github.com/olivere/elastic/v7"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,9 +22,12 @@ import (
 
 var logger = log.New(os.Stderr, "user_service: ", log.LstdFlags|log.Lshortfile)
 
+const ES_TIMEOUT time.Duration = 500 * time.Millisecond
+
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
-	DB *sql.DB
+	DB      *sql.DB
+	Elastic *elastic.Client
 }
 
 func NewUserServiceServer(cfg config.Config) *UserServiceServer {
@@ -37,9 +42,13 @@ func NewUserServiceServer(cfg config.Config) *UserServiceServer {
 		panic(err)
 	}
 	logger.Print("Successfully connected to DB!")
-
+	client, err := elastic.NewSimpleClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
+	if err != nil {
+		logger.Println(err)
+	}
 	return &UserServiceServer{
-		DB: db,
+		DB:      db,
+		Elastic: client,
 	}
 }
 
@@ -89,7 +98,24 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	var tempTime time.Time
 	if userId == ur.Id {
 		var user pb.AwayUser
-		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
+
+		// Check if user is available in elastic search
+		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		get1, err := server.Elastic.Get().
+			Index("users").
+			Id(userId).
+			Do(reqContext)
+
+		if err == nil && get1.Found {
+			if err = json.Unmarshal(get1.Source, &user); err == nil {
+				return &pb.GetUserResponse{
+					UserOneof: &pb.GetUserResponse_User{User: &user},
+				}, nil
+			}
+			// Deserialization failed
+		}
+		err = server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
 			&user.UserName,
 			&user.Email,
 			&user.Bio,
@@ -106,12 +132,41 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 		user.CreatedAt = timestamppb.New(tempTime)
 		user.Id = userId
 
+		// Add to ElasticSearch
+		reqContext, cancel = context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		_, err = server.Elastic.Index().
+			Index("users").
+			Id(user.Id).
+			BodyJson(&user).
+			Refresh("false").
+			Do(reqContext)
+		if err != nil {
+			logger.Printf("Error: %s", err)
+		}
+
 		return &pb.GetUserResponse{
 			UserOneof: &pb.GetUserResponse_User{User: &user},
 		}, nil
 	}
 	var minimalUserInfo pb.MinimalUserInfo
-	err := server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
+
+	// Check if user is available in elastic search
+	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+	defer cancel()
+	get1, err := server.Elastic.Get().
+		Index("minimal_users").
+		Id(userId).
+		Do(reqContext)
+	if err == nil && get1.Found {
+		if err = json.Unmarshal(get1.Source, &minimalUserInfo); err == nil {
+			return &pb.GetUserResponse{
+				UserOneof: &pb.GetUserResponse_MinimalUser{MinimalUser: &minimalUserInfo},
+			}, nil
+		}
+		// Deserialization failed
+	}
+	err = server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
 		&minimalUserInfo.Id,
 		&minimalUserInfo.UserName,
 		&minimalUserInfo.Bio,
@@ -124,6 +179,20 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 		return nil, status.Error(codes.NotFound, "User not found")
 	}
 	minimalUserInfo.CreatedAt = timestamppb.New(tempTime)
+
+	// Add to ElasticSearch
+	reqContext, cancel = context.WithTimeout(ctx, ES_TIMEOUT)
+	defer cancel()
+	_, err = server.Elastic.Index().
+		Index("minimal_users").
+		Id(minimalUserInfo.Id).
+		BodyJson(&minimalUserInfo).
+		Refresh("false").
+		Do(reqContext)
+	if err != nil {
+		logger.Printf("Error: %s", err)
+	}
+
 	return &pb.GetUserResponse{
 		UserOneof: &pb.GetUserResponse_MinimalUser{MinimalUser: &minimalUserInfo},
 	}, nil
@@ -148,6 +217,10 @@ func (server *UserServiceServer) UpdateUser(ctx context.Context, in *pb.UpdateUs
 		logger.Print("update error: ", err)
 		return nil, status.Error(codes.Internal, "Could not update user")
 	}
+	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+	defer cancel()
+	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
+	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
 
 	return &pb.UpdateUserResponse{Success: true}, nil
 }
@@ -167,5 +240,9 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	if err = auth.FirebaseAuth.DeleteUser(context.Background(), userId); err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
+	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+	defer cancel()
+	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
+	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
 	return &pb.DeleteUserResponse{}, nil
 }

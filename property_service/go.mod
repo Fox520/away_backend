@@ -11,13 +11,18 @@ require (
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
+
 replace github.com/Fox520/away_backend/auth => ../auth
+
 require (
 	cloud.google.com/go v0.97.0 // indirect
 	cloud.google.com/go/firestore v1.6.0 // indirect
 	cloud.google.com/go/storage v1.17.0 // indirect
 	firebase.google.com/go v3.13.0+incompatible // indirect
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect

@@ -14,6 +14,7 @@ require (
 	github.com/Fox520/away_backend/testhelper v0.0.0-20210820135334-717789c930c3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/lib/pq v1.10.2
+	github.com/olivere/elastic/v7 v7.0.29 // indirect
 	github.com/spf13/cast v1.4.0 // indirect
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1

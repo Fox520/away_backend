@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	DBHost     string `mapstructure:"DB_HOST"`
-	DBPassword string `mapstructure:"DB_PASSWORD"`
-	DBName     string `mapstructure:"DB_NAME"`
-	DBPort     string `mapstructure:"DB_PORT"`
+	DBHost            string `mapstructure:"DB_HOST"`
+	DBPassword        string `mapstructure:"DB_PASSWORD"`
+	DBName            string `mapstructure:"DB_NAME"`
+	DBPort            string `mapstructure:"DB_PORT"`
+	ELASTICSEARCH_URL string `mapstructure:"ELASTICSEARCH_URL"`
 }
 
 func LoadConfig() (cfg Config, err error) {
