@@ -12,7 +12,7 @@ import (
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
 	testhelper "github.com/Fox520/away_backend/testhelper"
-	pb "github.com/Fox520/away_backend/user_service/pb"
+	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
 	server "github.com/Fox520/away_backend/user_service/server"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	_ "github.com/lib/pq"

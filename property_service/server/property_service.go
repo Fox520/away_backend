@@ -5,13 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
-	pb "github.com/Fox520/away_backend/property_service/pb"
+	pb "github.com/Fox520/away_backend/property_service/github.com/Fox520/away_backend/property_service/pb"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type PropertyServiceServer struct {
@@ -45,6 +47,7 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 	// Fixes: invalid memory address or nil pointer dereference
 	propertyResponse.Property = &pb.Property{}
 
+	var tempTime time.Time
 	err := server.DB.QueryRow(`
 		SELECT
 			p.id,
@@ -60,7 +63,7 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 			p.surburb,
 			p.town,
 			p.title,
-			p.description,
+			p.p_description,
 			p.currency,
 			p.available,
 			p.price,
@@ -71,7 +74,8 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 			p.water_included,
 			p.electricity_included,
 			p.latitude,
-			p.longitude
+			p.longitude,
+			p.posted_date
 
 		FROM
 			properties p,
@@ -106,15 +110,17 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 		&propertyResponse.Property.ElectricityIncluded,
 		&propertyResponse.Property.Latitude,
 		&propertyResponse.Property.Longitude,
+		&tempTime,
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
+	propertyResponse.Property.PostedDate = timestamppb.New(tempTime)
 	// Add photos to response
 	rows, err := server.DB.Query(`SELECT id, p_url, property_id FROM property_photos WHERE property_id = $1`, pr.Id)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
 	for rows.Next() {
@@ -309,7 +315,7 @@ func (server *PropertyServiceServer) CreateProperty(ctx context.Context, request
 		surburb,
 		town,
 		title,
-		description,
+		p_description,
 		currency,
 		available,
 		price,
@@ -367,7 +373,12 @@ func (server *PropertyServiceServer) CreateProperty(ctx context.Context, request
 		}
 	}
 	property.Id = propertyId
-	return property, nil
+	// Retrieve property
+	resp, err := server.GetSingleProperty(ctx, &pb.GetSinglePropertyRequest{Id: propertyId})
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+	return resp.Property, nil
 }
 
 func (server *PropertyServiceServer) UpdateProperty(context.Context, *pb.Property) (*pb.Property, error) {

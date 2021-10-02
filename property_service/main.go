@@ -1,4 +1,4 @@
-// protoc --go_out=pb --go-grpc_out=pb protos/user_service.proto
+// protoc --go_out=.\\ --go-grpc_out=.\\ -I=protos protos/property_service.proto
 package main
 
 import (
@@ -8,7 +8,7 @@ import (
 
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
-	pb "github.com/Fox520/away_backend/property_service/pb"
+	pb "github.com/Fox520/away_backend/property_service/github.com/Fox520/away_backend/property_service/pb"
 	server "github.com/Fox520/away_backend/property_service/server"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"google.golang.org/grpc"

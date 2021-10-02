@@ -11,7 +11,7 @@ import (
 
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
-	pb "github.com/Fox520/away_backend/user_service/pb"
+	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
 	pq "github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

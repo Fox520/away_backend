@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/Fox520/away_backend/property_service/pb"
+	pb "github.com/Fox520/away_backend/property_service/github.com/Fox520/away_backend/property_service/pb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
