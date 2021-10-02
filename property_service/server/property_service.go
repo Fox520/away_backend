@@ -49,9 +49,9 @@ func NewPropertyServiceServer(cfg config.Config, userClient user_pb.UserServiceC
 }
 
 // Fetch property from db
-func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *pb.GetSinglePropertyRequest) (*pb.GetSinglePropertyResponse, error) {
+func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *pb.GetSinglePropertyRequest) (*pb.SinglePropertyResponse, error) {
 
-	var propertyResponse pb.GetSinglePropertyResponse
+	var propertyResponse pb.SinglePropertyResponse
 	// Fixes: invalid memory address or nil pointer dereference
 	propertyResponse.Property = &pb.Property{}
 
@@ -158,15 +158,16 @@ func (server *PropertyServiceServer) GetSingleProperty(ctx context.Context, pr *
 	return &propertyResponse, nil
 }
 
-func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, pm *pb.GetMultiplePropertyRequest) (*pb.GetMultiplePropertyResponse, error) {
-	radius := pm.Radius
+func (server *PropertyServiceServer) GetMultipleProperties(req *pb.GetMultiplePropertyRequest, stream pb.PropertyService_GetMultiplePropertiesServer) error {
+	meta := stream.Context().Value(auth.ContextMetaDataKey).(map[string]string)
+
+	radius := req.Radius
 	if radius < 1 {
 		radius = 5
 	}
 	// Convert radius (km) to meters
 	radius = radius * 1000
 
-	var propertiesResponse pb.GetMultiplePropertyResponse
 	// src https://dba.stackexchange.com/a/158422
 	propertyRows, err := server.DB.Query(`
 		SELECT
@@ -216,17 +217,17 @@ func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, 
 			AND earth_distance(ll_to_earth($1, $2), 
 					ll_to_earth(latitude, longitude)) < $3 
 			`,
-		pm.Latitude,
-		pm.Longitude,
+		req.Latitude,
+		req.Longitude,
 		radius,
 	)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for propertyRows.Next() {
 		var property pb.Property
-		var response pb.GetSinglePropertyResponse
+		var response pb.SinglePropertyResponse
 
 		err = propertyRows.Scan(&property.Id,
 			&property.UserID,
@@ -277,22 +278,19 @@ func (server *PropertyServiceServer) GetMultipleProperties(ctx context.Context, 
 		response.Property = &property
 
 		// Attempt adding user profile
-		meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
-
 		token := meta[auth.ContextTokenKey]
 		md := metadata.New(map[string]string{"token": token})
-		requestContext := metadata.NewOutgoingContext(ctx, md)
-		logger.Println("network request")
+		requestContext := metadata.NewOutgoingContext(stream.Context(), md)
 		res, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: property.UserID})
 		if err == nil {
 			response.Owner = res
 		} else {
 			logger.Println(err)
 		}
-		propertiesResponse.Responses = append(propertiesResponse.Responses, &response)
+		stream.Send(&pb.GetMultiplePropertyResponse{Response: &response})
 	}
 
-	return &propertiesResponse, nil
+	return nil
 }
 
 func (server *PropertyServiceServer) GetMinimalProperties(ctx context.Context, pm *pb.GetMinimalPropertiesRequest) (*pb.GetMinimalPropertiesResponse, error) {

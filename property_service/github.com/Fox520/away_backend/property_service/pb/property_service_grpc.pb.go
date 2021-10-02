@@ -20,9 +20,9 @@ const _ = grpc.SupportPackageIsVersion7
 type PropertyServiceClient interface {
 	GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (*GetMinimalPropertiesResponse, error)
 	GetMinimalInfoPropertiesStream(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesStreamClient, error)
-	GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*GetSinglePropertyResponse, error)
+	GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*SinglePropertyResponse, error)
 	GetUserProperties(ctx context.Context, in *GetUserPropertiesRequest, opts ...grpc.CallOption) (*GetUserPropertiesResponse, error)
-	GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (*GetMultiplePropertyResponse, error)
+	GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error)
 	CreateProperty(ctx context.Context, in *CreatePropertyRequest, opts ...grpc.CallOption) (*Property, error)
 	UpdateProperty(ctx context.Context, in *Property, opts ...grpc.CallOption) (*Property, error)
 	DeleteProperty(ctx context.Context, in *DeletePropertyRequest, opts ...grpc.CallOption) (*DeletePropertyResponse, error)
@@ -81,8 +81,8 @@ func (x *propertyServiceGetMinimalInfoPropertiesStreamClient) CloseAndRecv() (*G
 	return m, nil
 }
 
-func (c *propertyServiceClient) GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*GetSinglePropertyResponse, error) {
-	out := new(GetSinglePropertyResponse)
+func (c *propertyServiceClient) GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*SinglePropertyResponse, error) {
+	out := new(SinglePropertyResponse)
 	err := c.cc.Invoke(ctx, "/property.service.PropertyService/GetSingleProperty", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -99,13 +99,36 @@ func (c *propertyServiceClient) GetUserProperties(ctx context.Context, in *GetUs
 	return out, nil
 }
 
-func (c *propertyServiceClient) GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (*GetMultiplePropertyResponse, error) {
-	out := new(GetMultiplePropertyResponse)
-	err := c.cc.Invoke(ctx, "/property.service.PropertyService/GetMultipleProperties", in, out, opts...)
+func (c *propertyServiceClient) GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[1], "/property.service.PropertyService/GetMultipleProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &propertyServiceGetMultiplePropertiesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type PropertyService_GetMultiplePropertiesClient interface {
+	Recv() (*GetMultiplePropertyResponse, error)
+	grpc.ClientStream
+}
+
+type propertyServiceGetMultiplePropertiesClient struct {
+	grpc.ClientStream
+}
+
+func (x *propertyServiceGetMultiplePropertiesClient) Recv() (*GetMultiplePropertyResponse, error) {
+	m := new(GetMultiplePropertyResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *propertyServiceClient) CreateProperty(ctx context.Context, in *CreatePropertyRequest, opts ...grpc.CallOption) (*Property, error) {
@@ -159,9 +182,9 @@ func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, in *P
 type PropertyServiceServer interface {
 	GetMinimalInfoProperties(context.Context, *GetMinimalPropertiesRequest) (*GetMinimalPropertiesResponse, error)
 	GetMinimalInfoPropertiesStream(PropertyService_GetMinimalInfoPropertiesStreamServer) error
-	GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*GetSinglePropertyResponse, error)
+	GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error)
 	GetUserProperties(context.Context, *GetUserPropertiesRequest) (*GetUserPropertiesResponse, error)
-	GetMultipleProperties(context.Context, *GetMultiplePropertyRequest) (*GetMultiplePropertyResponse, error)
+	GetMultipleProperties(*GetMultiplePropertyRequest, PropertyService_GetMultiplePropertiesServer) error
 	CreateProperty(context.Context, *CreatePropertyRequest) (*Property, error)
 	UpdateProperty(context.Context, *Property) (*Property, error)
 	DeleteProperty(context.Context, *DeletePropertyRequest) (*DeletePropertyResponse, error)
@@ -180,14 +203,14 @@ func (UnimplementedPropertyServiceServer) GetMinimalInfoProperties(context.Conte
 func (UnimplementedPropertyServiceServer) GetMinimalInfoPropertiesStream(PropertyService_GetMinimalInfoPropertiesStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetMinimalInfoPropertiesStream not implemented")
 }
-func (UnimplementedPropertyServiceServer) GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*GetSinglePropertyResponse, error) {
+func (UnimplementedPropertyServiceServer) GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSingleProperty not implemented")
 }
 func (UnimplementedPropertyServiceServer) GetUserProperties(context.Context, *GetUserPropertiesRequest) (*GetUserPropertiesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserProperties not implemented")
 }
-func (UnimplementedPropertyServiceServer) GetMultipleProperties(context.Context, *GetMultiplePropertyRequest) (*GetMultiplePropertyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMultipleProperties not implemented")
+func (UnimplementedPropertyServiceServer) GetMultipleProperties(*GetMultiplePropertyRequest, PropertyService_GetMultiplePropertiesServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetMultipleProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) CreateProperty(context.Context, *CreatePropertyRequest) (*Property, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateProperty not implemented")
@@ -297,22 +320,25 @@ func _PropertyService_GetUserProperties_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PropertyService_GetMultipleProperties_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMultiplePropertyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _PropertyService_GetMultipleProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetMultiplePropertyRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(PropertyServiceServer).GetMultipleProperties(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/property.service.PropertyService/GetMultipleProperties",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PropertyServiceServer).GetMultipleProperties(ctx, req.(*GetMultiplePropertyRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(PropertyServiceServer).GetMultipleProperties(m, &propertyServiceGetMultiplePropertiesServer{stream})
+}
+
+type PropertyService_GetMultiplePropertiesServer interface {
+	Send(*GetMultiplePropertyResponse) error
+	grpc.ServerStream
+}
+
+type propertyServiceGetMultiplePropertiesServer struct {
+	grpc.ServerStream
+}
+
+func (x *propertyServiceGetMultiplePropertiesServer) Send(m *GetMultiplePropertyResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _PropertyService_CreateProperty_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -425,10 +451,6 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PropertyService_GetUserProperties_Handler,
 		},
 		{
-			MethodName: "GetMultipleProperties",
-			Handler:    _PropertyService_GetMultipleProperties_Handler,
-		},
-		{
 			MethodName: "CreateProperty",
 			Handler:    _PropertyService_CreateProperty_Handler,
 		},
@@ -454,6 +476,11 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetMinimalInfoPropertiesStream",
 			Handler:       _PropertyService_GetMinimalInfoPropertiesStream_Handler,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "GetMultipleProperties",
+			Handler:       _PropertyService_GetMultipleProperties_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "property_service.proto",

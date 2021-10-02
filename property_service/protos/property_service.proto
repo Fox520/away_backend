@@ -99,7 +99,7 @@ message GetSinglePropertyRequest {
     string id = 1;
 }
 
-message GetSinglePropertyResponse {
+message SinglePropertyResponse {
     Property property = 1;
     user.service.GetUserResponse owner = 2;
 }
@@ -111,7 +111,7 @@ message GetMultiplePropertyRequest {
 }
 
 message GetMultiplePropertyResponse {
-    repeated GetSinglePropertyResponse responses = 1;
+    SinglePropertyResponse response = 1;
 }
 
 message CreatePropertyRequest {
@@ -145,9 +145,9 @@ message GetUserPropertiesResponse {
 service PropertyService {
     rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){};
     rpc GetMinimalInfoPropertiesStream (stream GetMinimalPropertiesRequest) returns (GetMinimalPropertiesResponse){}; // Useful when navigating on map
-    rpc GetSingleProperty (GetSinglePropertyRequest) returns (GetSinglePropertyResponse){};
+    rpc GetSingleProperty (GetSinglePropertyRequest) returns (SinglePropertyResponse){};
     rpc GetUserProperties (GetUserPropertiesRequest) returns (GetUserPropertiesResponse){};
-    rpc GetMultipleProperties (GetMultiplePropertyRequest) returns (GetMultiplePropertyResponse){};
+    rpc GetMultipleProperties (GetMultiplePropertyRequest) returns (stream GetMultiplePropertyResponse){};
     rpc CreateProperty (CreatePropertyRequest) returns (Property){};
     rpc UpdateProperty (Property) returns (Property){};
     rpc DeleteProperty (DeletePropertyRequest) returns (DeletePropertyResponse){};
