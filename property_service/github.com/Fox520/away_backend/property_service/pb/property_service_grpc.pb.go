@@ -27,6 +27,7 @@ type PropertyServiceClient interface {
 	DeleteProperty(ctx context.Context, in *DeletePropertyRequest, opts ...grpc.CallOption) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(ctx context.Context, in *FeaturedAreasRequest, opts ...grpc.CallOption) (*FeaturedAreasResponse, error)
 	GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error)
+	LocationSearch(ctx context.Context, opts ...grpc.CallOption) (PropertyService_LocationSearchClient, error)
 }
 
 type propertyServiceClient struct {
@@ -187,6 +188,37 @@ func (x *propertyServiceGetPromotedPropertiesClient) Recv() (*PromotedResponse, 
 	return m, nil
 }
 
+func (c *propertyServiceClient) LocationSearch(ctx context.Context, opts ...grpc.CallOption) (PropertyService_LocationSearchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[3], "/property.service.PropertyService/LocationSearch", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &propertyServiceLocationSearchClient{stream}
+	return x, nil
+}
+
+type PropertyService_LocationSearchClient interface {
+	Send(*LocationSearchRequest) error
+	Recv() (*LocationSearchResponse, error)
+	grpc.ClientStream
+}
+
+type propertyServiceLocationSearchClient struct {
+	grpc.ClientStream
+}
+
+func (x *propertyServiceLocationSearchClient) Send(m *LocationSearchRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *propertyServiceLocationSearchClient) Recv() (*LocationSearchResponse, error) {
+	m := new(LocationSearchResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // PropertyServiceServer is the server API for PropertyService service.
 // All implementations must embed UnimplementedPropertyServiceServer
 // for forward compatibility
@@ -200,6 +232,7 @@ type PropertyServiceServer interface {
 	DeleteProperty(context.Context, *DeletePropertyRequest) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(context.Context, *FeaturedAreasRequest) (*FeaturedAreasResponse, error)
 	GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error
+	LocationSearch(PropertyService_LocationSearchServer) error
 	mustEmbedUnimplementedPropertyServiceServer()
 }
 
@@ -233,6 +266,9 @@ func (UnimplementedPropertyServiceServer) GetFeaturedAreas(context.Context, *Fea
 }
 func (UnimplementedPropertyServiceServer) GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetPromotedProperties not implemented")
+}
+func (UnimplementedPropertyServiceServer) LocationSearch(PropertyService_LocationSearchServer) error {
+	return status.Errorf(codes.Unimplemented, "method LocationSearch not implemented")
 }
 func (UnimplementedPropertyServiceServer) mustEmbedUnimplementedPropertyServiceServer() {}
 
@@ -418,6 +454,32 @@ func (x *propertyServiceGetPromotedPropertiesServer) Send(m *PromotedResponse) e
 	return x.ServerStream.SendMsg(m)
 }
 
+func _PropertyService_LocationSearch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(PropertyServiceServer).LocationSearch(&propertyServiceLocationSearchServer{stream})
+}
+
+type PropertyService_LocationSearchServer interface {
+	Send(*LocationSearchResponse) error
+	Recv() (*LocationSearchRequest, error)
+	grpc.ServerStream
+}
+
+type propertyServiceLocationSearchServer struct {
+	grpc.ServerStream
+}
+
+func (x *propertyServiceLocationSearchServer) Send(m *LocationSearchResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *propertyServiceLocationSearchServer) Recv() (*LocationSearchRequest, error) {
+	m := new(LocationSearchRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // PropertyService_ServiceDesc is the grpc.ServiceDesc for PropertyService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -465,6 +527,12 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetPromotedProperties",
 			Handler:       _PropertyService_GetPromotedProperties_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "LocationSearch",
+			Handler:       _PropertyService_LocationSearch_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "property_service.proto",

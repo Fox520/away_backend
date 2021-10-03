@@ -4,6 +4,7 @@ package property.service;
 option go_package = "github.com/Fox520/away_backend/property_service/pb"; //golang
 
 import "google/protobuf/timestamp.proto";
+// import "C:\\Users\\Asus\\Documents\\prog\\away_backend\\user_service\\protos\\user_service.proto"; // bloomRPC requires full path
 import "user_service.proto";
 
 message Property {
@@ -143,6 +144,43 @@ message GetUserPropertiesResponse {
     repeated Property properties = 1;
 }
 
+message LocationSearchRequest {
+    oneof search_oneof {
+        LocationAutocompleteQuery query = 1;
+        LocationDetailsQuery details = 2;
+    }
+   
+}
+message LocationAutocompleteQuery {
+    string text = 1;
+    string countryCode = 2;
+}
+
+message LocationDetailsQuery {
+    string placeID = 1;
+}
+
+message LocationSearchResponse {
+    oneof response_oneof {
+        LocationDetails details = 1;
+        LocationAutocomplete autocomplete = 2;
+    }
+}
+
+message LocationDetails {
+    string title = 1;
+    string secondaryText = 2;
+    float latitude = 3;
+    float longitude = 4;
+    string placeID = 5;
+}
+
+message LocationAutocomplete {
+    string placeID = 1;
+    string title = 2;
+    string secondaryText = 3;
+
+}
 
 service PropertyService {
     rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (stream GetMinimalPropertiesResponse){}; // Useful when navigating on map
@@ -154,4 +192,5 @@ service PropertyService {
     rpc DeleteProperty (DeletePropertyRequest) returns (DeletePropertyResponse){};
     rpc GetFeaturedAreas (FeaturedAreasRequest) returns (FeaturedAreasResponse){};
     rpc GetPromotedProperties (PromotedRequest) returns (stream PromotedResponse){};
+    rpc LocationSearch (stream LocationSearchRequest) returns (stream LocationSearchResponse){};
 }

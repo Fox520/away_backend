@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"googlemaps.github.io/maps"
 )
 
 var logger = log.New(os.Stderr, "property_service: ", log.LstdFlags|log.Lshortfile)
@@ -561,4 +563,42 @@ func (server *PropertyServiceServer) GetFeaturedAreas(ctx context.Context, tr *p
 	}
 	response.FeaturedAreas = res
 	return &response, nil
+}
+
+func (server *PropertyServiceServer) LocationSearch(stream pb.PropertyService_LocationSearchServer) error {
+	sessionToken := maps.NewPlaceAutocompleteSessionToken()
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			logger.Println(err)
+			return err
+		}
+		switch req := req.SearchOneof.(type) {
+		case *pb.LocationSearchRequest_Query:
+			predictions, err := performSearch(stream.Context(), sessionToken, &req.Query.Text, req.Query.CountryCode)
+			if err != nil {
+				return err
+			}
+			for _, prediction := range predictions {
+				response := pb.LocationSearchResponse{ResponseOneof: &pb.LocationSearchResponse_Autocomplete{Autocomplete: &pb.LocationAutocomplete{
+					Title:         prediction.StructuredFormatting.MainText,
+					SecondaryText: prediction.StructuredFormatting.SecondaryText,
+					PlaceID:       prediction.PlaceID,
+				}}}
+				if err := stream.Send(&response); err != nil {
+					return err
+				}
+
+			}
+
+		case *pb.LocationSearchRequest_Details:
+			// TODO: lat/lng
+			// stream.Send()
+			return nil
+		}
+
+	}
 }
