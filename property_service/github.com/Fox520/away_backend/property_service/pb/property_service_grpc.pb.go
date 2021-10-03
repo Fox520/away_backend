@@ -26,7 +26,7 @@ type PropertyServiceClient interface {
 	UpdateProperty(ctx context.Context, in *Property, opts ...grpc.CallOption) (*Property, error)
 	DeleteProperty(ctx context.Context, in *DeletePropertyRequest, opts ...grpc.CallOption) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(ctx context.Context, in *FeaturedAreasRequest, opts ...grpc.CallOption) (*FeaturedAreasResponse, error)
-	GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (*PromotedResponse, error)
+	GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error)
 }
 
 type propertyServiceClient struct {
@@ -155,13 +155,36 @@ func (c *propertyServiceClient) GetFeaturedAreas(ctx context.Context, in *Featur
 	return out, nil
 }
 
-func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (*PromotedResponse, error) {
-	out := new(PromotedResponse)
-	err := c.cc.Invoke(ctx, "/property.service.PropertyService/GetPromotedProperties", in, out, opts...)
+func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[2], "/property.service.PropertyService/GetPromotedProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &propertyServiceGetPromotedPropertiesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type PropertyService_GetPromotedPropertiesClient interface {
+	Recv() (*PromotedResponse, error)
+	grpc.ClientStream
+}
+
+type propertyServiceGetPromotedPropertiesClient struct {
+	grpc.ClientStream
+}
+
+func (x *propertyServiceGetPromotedPropertiesClient) Recv() (*PromotedResponse, error) {
+	m := new(PromotedResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // PropertyServiceServer is the server API for PropertyService service.
@@ -176,7 +199,7 @@ type PropertyServiceServer interface {
 	UpdateProperty(context.Context, *Property) (*Property, error)
 	DeleteProperty(context.Context, *DeletePropertyRequest) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(context.Context, *FeaturedAreasRequest) (*FeaturedAreasResponse, error)
-	GetPromotedProperties(context.Context, *PromotedRequest) (*PromotedResponse, error)
+	GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error
 	mustEmbedUnimplementedPropertyServiceServer()
 }
 
@@ -208,8 +231,8 @@ func (UnimplementedPropertyServiceServer) DeleteProperty(context.Context, *Delet
 func (UnimplementedPropertyServiceServer) GetFeaturedAreas(context.Context, *FeaturedAreasRequest) (*FeaturedAreasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeaturedAreas not implemented")
 }
-func (UnimplementedPropertyServiceServer) GetPromotedProperties(context.Context, *PromotedRequest) (*PromotedResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPromotedProperties not implemented")
+func (UnimplementedPropertyServiceServer) GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetPromotedProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) mustEmbedUnimplementedPropertyServiceServer() {}
 
@@ -374,22 +397,25 @@ func _PropertyService_GetFeaturedAreas_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PropertyService_GetPromotedProperties_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PromotedRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _PropertyService_GetPromotedProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(PromotedRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(PropertyServiceServer).GetPromotedProperties(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/property.service.PropertyService/GetPromotedProperties",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PropertyServiceServer).GetPromotedProperties(ctx, req.(*PromotedRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(PropertyServiceServer).GetPromotedProperties(m, &propertyServiceGetPromotedPropertiesServer{stream})
+}
+
+type PropertyService_GetPromotedPropertiesServer interface {
+	Send(*PromotedResponse) error
+	grpc.ServerStream
+}
+
+type propertyServiceGetPromotedPropertiesServer struct {
+	grpc.ServerStream
+}
+
+func (x *propertyServiceGetPromotedPropertiesServer) Send(m *PromotedResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 // PropertyService_ServiceDesc is the grpc.ServiceDesc for PropertyService service.
@@ -423,10 +449,6 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetFeaturedAreas",
 			Handler:    _PropertyService_GetFeaturedAreas_Handler,
 		},
-		{
-			MethodName: "GetPromotedProperties",
-			Handler:    _PropertyService_GetPromotedProperties_Handler,
-		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -437,6 +459,11 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetMultipleProperties",
 			Handler:       _PropertyService_GetMultipleProperties_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetPromotedProperties",
+			Handler:       _PropertyService_GetPromotedProperties_Handler,
 			ServerStreams: true,
 		},
 	},

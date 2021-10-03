@@ -85,7 +85,7 @@ message PromotedRequest {
 }
 
 message PromotedResponse {
-    repeated SingleMinimalProperty properties = 1;
+    SingleMinimalProperty property = 1;
 }
 
 message DeletePropertyRequest{
@@ -153,5 +153,5 @@ service PropertyService {
     rpc UpdateProperty (Property) returns (Property){};
     rpc DeleteProperty (DeletePropertyRequest) returns (DeletePropertyResponse){};
     rpc GetFeaturedAreas (FeaturedAreasRequest) returns (FeaturedAreasResponse){};
-    rpc GetPromotedProperties (PromotedRequest) returns (PromotedResponse){};
+    rpc GetPromotedProperties (PromotedRequest) returns (stream PromotedResponse){};
 }

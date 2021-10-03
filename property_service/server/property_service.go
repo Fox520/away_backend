@@ -354,37 +354,83 @@ func (server *PropertyServiceServer) GetMinimalInfoProperties(req *pb.GetMinimal
 
 }
 
-func (server *PropertyServiceServer) GetPromotedProperties(ctx context.Context, pr *pb.PromotedRequest) (*pb.PromotedResponse, error) {
-	radius := pr.Radius
+/*
+Just like GetMinimalInfoProperties but for promoted properties
+*/
+func (server *PropertyServiceServer) GetPromotedProperties(req *pb.PromotedRequest, stream pb.PropertyService_GetPromotedPropertiesServer) error {
+	meta := stream.Context().Value(auth.ContextMetaDataKey).(map[string]string)
+
+	radius := req.Radius
 	if radius < 1 {
-		radius = 200
+		radius = 5
 	}
 	// Convert radius (km) to meters
 	radius = radius * 1000
 
-	var promotedResponse pb.PromotedResponse
-	properties, err := fetchAndCacheMinimalProperties(ctx, server.DB, server.RedisClient, pr.Latitude, pr.Longitude, radius, true)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	meta := ctx.Value(auth.ContextMetaDataKey).(map[string]string)
+	results, err := server.RedisClient.GeoRadius(stream.Context(), minimalPropertiesGeo, float64(req.Longitude), float64(req.Latitude), &redis.GeoRadiusQuery{
+		Radius: float64(radius),
+		Unit:   "m",
+		Sort:   "ASC",
+	}).Result()
 
-	token := meta[auth.ContextTokenKey]
-	md := metadata.New(map[string]string{"token": token})
-	requestContext := metadata.NewOutgoingContext(ctx, md)
-	for _, prop := range properties {
-		// Attempt adding user profile
-		userResponse, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: prop.UserID})
-		if err != nil {
-			logger.Println(err)
+	properties := make([]*pb.MinimalProperty, 0, 10)
+
+	defer func() {
+		properties = nil
+	}()
+
+	if err == nil {
+		// Cache hit
+		for _, geo := range results {
+			prop, err := getCachedMinimalProperty(stream.Context(), server.RedisClient, geo.Name)
+			if err != nil {
+				// Cache miss, fetch & cache
+				prop, err = fetchAndCacheMinimalProperty(stream.Context(), server.DB, server.RedisClient, geo.Name)
+				if err != nil {
+					continue
+				}
+			}
+			// Only add those promoted
+			if prop.Promoted {
+				properties = append(properties, prop)
+			}
 		}
-		promotedResponse.Properties = append(promotedResponse.Properties, &pb.SingleMinimalProperty{
-			Property: prop,
-			Owner:    userResponse,
-		})
 	}
+	if len(properties) == 0 {
+		properties, err = fetchAndCacheMinimalProperties(stream.Context(), server.DB, server.RedisClient, req.Latitude, req.Longitude, radius, true)
+		if err != nil {
+			return err
+		}
+	}
+	var owners map[string]*user_pb.GetUserResponse
+	for _, property := range properties {
+		var singleMinimalProperty pb.SingleMinimalProperty
+		// Avoid retrieving already fetched profiles
+		if owners[property.UserID] == nil {
+			// Attempt adding user profile
+			token := meta[auth.ContextTokenKey]
+			md := metadata.New(map[string]string{"token": token})
+			requestContext := metadata.NewOutgoingContext(stream.Context(), md)
+			res, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: property.UserID})
+			if err == nil {
+				singleMinimalProperty.Owner = res
+			} else {
+				logger.Println(err)
+			}
+		} else {
+			singleMinimalProperty.Owner = owners[property.UserID]
+		}
+		singleMinimalProperty.Property = property
+		// Cache property for this location
+		server.RedisClient.GeoAdd(stream.Context(), minimalPropertiesGeo, &redis.GeoLocation{
+			Longitude: float64(property.Longitude),
+			Latitude:  float64(property.Latitude),
+			Name:      property.Id,
+		})
 
-	return &promotedResponse, nil
+		stream.Send(&pb.PromotedResponse{Property: &singleMinimalProperty})
+	}
+	return nil
 }
 
 func (server *PropertyServiceServer) CreateProperty(ctx context.Context, request *pb.CreatePropertyRequest) (*pb.Property, error) {
