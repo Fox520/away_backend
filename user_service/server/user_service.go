@@ -13,6 +13,7 @@ import (
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
 	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
+	"github.com/go-redis/redis/v8"
 	pq "github.com/lib/pq"
 	"github.com/olivere/elastic/v7"
 	"google.golang.org/grpc/codes"
@@ -26,8 +27,9 @@ const ES_TIMEOUT time.Duration = 600 * time.Millisecond
 
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
-	DB      *sql.DB
-	Elastic *elastic.Client
+	DB          *sql.DB
+	Elastic     *elastic.Client
+	RedisClient *redis.Client
 }
 
 func NewUserServiceServer(cfg config.Config) *UserServiceServer {
@@ -41,14 +43,22 @@ func NewUserServiceServer(cfg config.Config) *UserServiceServer {
 	if err != nil {
 		panic(err)
 	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr:        "localhost:6379",
+		Password:    "",
+		DB:          0,
+		MaxRetries:  -1,
+		DialTimeout: 400 * time.Millisecond,
+	})
 	logger.Print("Successfully connected to DB!")
 	client, err := elastic.NewSimpleClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
 	if err != nil {
 		logger.Println(err)
 	}
 	return &UserServiceServer{
-		DB:      db,
-		Elastic: client,
+		DB:          db,
+		Elastic:     client,
+		RedisClient: rdb,
 	}
 }
 
@@ -244,6 +254,6 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	defer cancel()
 	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
 	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
-	// TODO: remove email from redis. `email:{uid}`
+	server.RedisClient.Del(ctx, "email:"+userId)
 	return &pb.DeleteUserResponse{}, nil
 }

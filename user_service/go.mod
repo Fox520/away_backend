@@ -12,6 +12,7 @@ require (
 	github.com/Fox520/away_backend/auth v0.0.0-20210820135334-717789c930c3
 	github.com/Fox520/away_backend/config v0.0.0-20210807233659-2b4e69eac5fd
 	github.com/Fox520/away_backend/testhelper v0.0.0-20210820135334-717789c930c3
+	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/lib/pq v1.10.2
 	github.com/olivere/elastic/v7 v7.0.29
