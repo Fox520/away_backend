@@ -2,7 +2,10 @@ package auth
 
 import (
 	"context"
+	"sync"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -61,12 +64,17 @@ func AuthInterceptor(ctx context.Context) (context.Context, error) {
 }
 
 func extractUserEmail(uid string) (string, error) {
-
+	// Try avoiding network roundtrip
+	mail, err := getRedisClient().Get(context.Background(), "email:"+uid).Result()
+	if err == nil {
+		return mail, nil
+	}
 	ur, err := FirebaseAuth.GetUser(context.Background(), uid)
 	if err != nil {
 		logger.Print("Cannot get user: ", err)
 		return "", status.Error(codes.Unauthenticated, err.Error())
 	}
+	getRedisClient().Set(context.Background(), "email:"+uid, ur.Email, 0)
 	return ur.Email, nil
 }
 
@@ -78,4 +86,21 @@ func extractUserID(token string) (string, error) {
 		return "", status.Error(codes.Unauthenticated, err.Error())
 	}
 	return at.UID, nil
+}
+
+var once sync.Once
+var redisClient *redis.Client
+
+func getRedisClient() *redis.Client {
+	once.Do(func() {
+		client := redis.NewClient(&redis.Options{
+			Addr:        "localhost:6379",
+			Password:    "",
+			DB:          0,
+			MaxRetries:  -1,
+			DialTimeout: 400 * time.Millisecond,
+		})
+		redisClient = client
+	})
+	return redisClient
 }

@@ -244,5 +244,6 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	defer cancel()
 	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
 	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
+	// TODO: remove email from redis. `email:{uid}`
 	return &pb.DeleteUserResponse{}, nil
 }
