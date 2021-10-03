@@ -25,6 +25,9 @@ var logger = log.New(os.Stderr, "user_service: ", log.LstdFlags|log.Lshortfile)
 
 const ES_TIMEOUT time.Duration = 600 * time.Millisecond
 
+// local tests show DB call is faster than hitting elastic
+const USE_ELASTIC_SEARCH = false
+
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
 	DB          *sql.DB
@@ -109,23 +112,26 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	if userId == ur.Id {
 		var user pb.AwayUser
 
-		// Check if user is available in elastic search
-		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
-		defer cancel()
-		get1, err := server.Elastic.Get().
-			Index("users").
-			Id(userId).
-			Do(reqContext)
+		if USE_ELASTIC_SEARCH {
+			// Check if user is available in elastic search
+			reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+			defer cancel()
+			get1, err := server.Elastic.Get().
+				Index("users").
+				Id(userId).
+				Do(reqContext)
 
-		if err == nil && get1.Found {
-			if err = json.Unmarshal(get1.Source, &user); err == nil {
-				return &pb.GetUserResponse{
-					UserOneof: &pb.GetUserResponse_User{User: &user},
-				}, nil
+			if err == nil && get1.Found {
+				if err = json.Unmarshal(get1.Source, &user); err == nil {
+					return &pb.GetUserResponse{
+						UserOneof: &pb.GetUserResponse_User{User: &user},
+					}, nil
+				}
+				// Deserialization failed
 			}
-			// Deserialization failed
 		}
-		err = server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
+
+		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
 			&user.UserName,
 			&user.Email,
 			&user.Bio,
@@ -142,17 +148,19 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 		user.CreatedAt = timestamppb.New(tempTime)
 		user.Id = userId
 
-		// Add to ElasticSearch
-		reqContext, cancel = context.WithTimeout(ctx, ES_TIMEOUT)
-		defer cancel()
-		_, err = server.Elastic.Index().
-			Index("users").
-			Id(user.Id).
-			BodyJson(&user).
-			Refresh("false").
-			Do(reqContext)
-		if err != nil {
-			logger.Printf("Error: %s", err)
+		if USE_ELASTIC_SEARCH {
+			// Add to ElasticSearch
+			reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+			defer cancel()
+			_, err = server.Elastic.Index().
+				Index("users").
+				Id(user.Id).
+				BodyJson(&user).
+				Refresh("false").
+				Do(reqContext)
+			if err != nil {
+				logger.Printf("Error: %s", err)
+			}
 		}
 
 		return &pb.GetUserResponse{
@@ -161,22 +169,25 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	}
 	var minimalUserInfo pb.MinimalUserInfo
 
-	// Check if user is available in elastic search
-	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
-	defer cancel()
-	get1, err := server.Elastic.Get().
-		Index("minimal_users").
-		Id(userId).
-		Do(reqContext)
-	if err == nil && get1.Found {
-		if err = json.Unmarshal(get1.Source, &minimalUserInfo); err == nil {
-			return &pb.GetUserResponse{
-				UserOneof: &pb.GetUserResponse_MinimalUser{MinimalUser: &minimalUserInfo},
-			}, nil
+	if USE_ELASTIC_SEARCH {
+		// Check if user is available in elastic search
+		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		get1, err := server.Elastic.Get().
+			Index("minimal_users").
+			Id(userId).
+			Do(reqContext)
+		if err == nil && get1.Found {
+			if err = json.Unmarshal(get1.Source, &minimalUserInfo); err == nil {
+				return &pb.GetUserResponse{
+					UserOneof: &pb.GetUserResponse_MinimalUser{MinimalUser: &minimalUserInfo},
+				}, nil
+			}
+			// Deserialization failed
 		}
-		// Deserialization failed
 	}
-	err = server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
+
+	err := server.DB.QueryRow(`SELECT id, username, bio, verified, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, ur.Id).Scan(
 		&minimalUserInfo.Id,
 		&minimalUserInfo.UserName,
 		&minimalUserInfo.Bio,
@@ -190,17 +201,20 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 	}
 	minimalUserInfo.CreatedAt = timestamppb.New(tempTime)
 
-	// Add to ElasticSearch
-	reqContext, cancel = context.WithTimeout(ctx, ES_TIMEOUT)
-	defer cancel()
-	_, err = server.Elastic.Index().
-		Index("minimal_users").
-		Id(minimalUserInfo.Id).
-		BodyJson(&minimalUserInfo).
-		Refresh("false").
-		Do(reqContext)
-	if err != nil {
-		logger.Printf("Error: %s", err)
+	if USE_ELASTIC_SEARCH {
+		// Add to ElasticSearch
+		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		_, err = server.Elastic.Index().
+			Index("minimal_users").
+			Id(minimalUserInfo.Id).
+			BodyJson(&minimalUserInfo).
+			Refresh("false").
+			Do(reqContext)
+		if err != nil {
+			logger.Printf("Error: %s", err)
+		}
+
 	}
 
 	return &pb.GetUserResponse{
@@ -227,10 +241,12 @@ func (server *UserServiceServer) UpdateUser(ctx context.Context, in *pb.UpdateUs
 		logger.Print("update error: ", err)
 		return nil, status.Error(codes.Internal, "Could not update user")
 	}
-	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
-	defer cancel()
-	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
-	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
+	if USE_ELASTIC_SEARCH {
+		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
+		server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
+	}
 
 	return &pb.UpdateUserResponse{Success: true}, nil
 }
@@ -250,10 +266,12 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	if err = auth.FirebaseAuth.DeleteUser(context.Background(), userId); err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
-	reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
-	defer cancel()
-	server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
-	server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
-	server.RedisClient.Del(ctx, "email:"+userId)
+	if USE_ELASTIC_SEARCH {
+		reqContext, cancel := context.WithTimeout(ctx, ES_TIMEOUT)
+		defer cancel()
+		server.Elastic.Delete().Index("users").Id(userId).Do(reqContext)
+		server.Elastic.Delete().Index("minimal_users").Id(userId).Do(reqContext)
+	}
+
 	return &pb.DeleteUserResponse{}, nil
 }
