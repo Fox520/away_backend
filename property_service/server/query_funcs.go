@@ -15,7 +15,46 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func minimalQuery(DB *sql.DB, lat float32, lng float32, radius float32, isPromoted bool) ([]*pb.MinimalProperty, error) {
+const redisPropertyBase = "property:"
+const redisMinimalPropertyBase = "minimal_property:"
+
+func topAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) {
+
+	var areas []*pb.FeaturedArea
+	// src https://dba.stackexchange.com/a/158422
+	propertyRows, err := DB.Query(`
+		SELECT
+			title,
+			photo_url,
+			latitude,
+			longitude
+		FROM
+			top_areas
+		WHERE
+			country = $1`,
+		strings.ToLower(country),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for propertyRows.Next() {
+		var area pb.FeaturedArea
+		err = propertyRows.Scan(&area.Title,
+			&area.PhotoURL,
+			&area.Latitude,
+			&area.Longitude,
+		)
+		if err != nil {
+			continue
+		}
+		areas = append(areas, &area)
+	}
+	return areas, nil
+}
+
+func fetchAndCacheMinimalProperties(ctx context.Context, DB *sql.DB, client *redis.Client, lat float32, lng float32, radius float32, isPromoted bool) ([]*pb.MinimalProperty, error) {
 	promotedString := ""
 	if isPromoted {
 		promotedString = "p.promoted = true AND"
@@ -94,46 +133,88 @@ func minimalQuery(DB *sql.DB, lat float32, lng float32, radius float32, isPromot
 			property.Photos = append(property.Photos, &pb.Photo{Id: id, Url: url, PropertyID: propId})
 		}
 		properties = append(properties, &property)
+		cacheMinimalProperty(ctx, client, &property)
 	}
 	return properties, nil
 }
 
-func topAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) {
-
-	var areas []*pb.FeaturedArea
-	// src https://dba.stackexchange.com/a/158422
-	propertyRows, err := DB.Query(`
-		SELECT
-			title,
-			photo_url,
-			latitude,
-			longitude
-		FROM
-			top_areas
-		WHERE
-			country = $1`,
-		strings.ToLower(country),
+/*
+Looks up property identified by the provided property id and
+returns a lightweight property for the given id if that property is found
+*/
+func fetchAndCacheMinimalProperty(ctx context.Context, DB *sql.DB, client *redis.Client, id string) (*pb.MinimalProperty, error) {
+	var property *pb.MinimalProperty
+	var tempTime time.Time
+	err := DB.QueryRow(`
+			SELECT
+				p.id,
+				ptype.p_type,
+				ptype.id,
+				pcat.p_category,
+				pcat.id,
+				pusage.p_usage,
+				pusage.id,
+				p.bedrooms,
+				p.title,
+				p.currency,
+				p.price,
+				p.posted_date,
+				p.user_id,
+				p.latitude,
+				p.longitude
+			FROM
+				properties p,
+				lateral(SELECT id, p_type FROM property_type WHERE id = p.property_type_id) as ptype,
+				lateral(SELECT id, p_category FROM property_category WHERE id = p.property_category_id) as pcat,
+				lateral(SELECT id, p_usage FROM property_usage WHERE id = p.property_usage_id) as pusage
+	
+			WHERE
+				p.id = $1`, id).Scan(
+		&property.Id,
+		&property.PropertyType,
+		&property.PropertyTypeID,
+		&property.PropertyCategory,
+		&property.PropertyCategoryID,
+		&property.PropertyUsage,
+		&property.PropertyUsageID,
+		&property.Bedrooms,
+		&property.Title,
+		&property.Currency,
+		&property.Price,
+		&tempTime,
+		&property.UserID,
+		&property.Latitude,
+		&property.Longitude,
 	)
-
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
-
-	for propertyRows.Next() {
-		var area pb.FeaturedArea
-		err = propertyRows.Scan(&area.Title,
-			&area.PhotoURL,
-			&area.Latitude,
-			&area.Longitude,
-		)
+	property.PostedDate = timestamppb.New(tempTime)
+	// Add photos to response
+	rows, err := DB.Query(`SELECT id, p_url, property_id FROM property_photos WHERE property_id = $1`, id)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	for rows.Next() {
+		id := ""
+		url := ""
+		propId := ""
+		err = rows.Scan(&id, &url, &propId)
 		if err != nil {
 			continue
 		}
-		areas = append(areas, &area)
+
+		property.Photos = append(property.Photos, &pb.Photo{Id: id, Url: url, PropertyID: propId})
+
 	}
-	return areas, nil
+	cacheMinimalProperty(ctx, client, property)
+	return property, nil
 }
 
+/*
+Looks up property identified by the provided property id and
+returns a property for the given id if that property is found
+*/
 func fetchAndCacheSingleProperty(ctx context.Context, DB *sql.DB, client *redis.Client, id string) (*pb.Property, error) {
 	var property *pb.Property
 	var tempTime time.Time
@@ -228,7 +309,7 @@ func fetchAndCacheSingleProperty(ctx context.Context, DB *sql.DB, client *redis.
 
 func getCachedSingleProperty(ctx context.Context, client *redis.Client, propertyId string) (*pb.Property, error) {
 	var prop pb.Property
-	propertyCache, err := client.Get(ctx, "property:"+propertyId).Result()
+	propertyCache, err := client.Get(ctx, redisPropertyBase+propertyId).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -242,6 +323,26 @@ func getCachedSingleProperty(ctx context.Context, client *redis.Client, property
 func cacheSingleProperty(ctx context.Context, client *redis.Client, prop *pb.Property) {
 	propertyBytes, err := json.Marshal(prop)
 	if err == nil {
-		client.Set(ctx, "property:"+prop.Id, propertyBytes, 0).Err()
+		client.Set(ctx, redisPropertyBase+prop.Id, propertyBytes, 0).Err()
+	}
+}
+
+func getCachedMinimalProperty(ctx context.Context, client *redis.Client, propertyId string) (*pb.MinimalProperty, error) {
+	var prop pb.MinimalProperty
+	propertyCache, err := client.Get(ctx, redisMinimalPropertyBase+propertyId).Result()
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal([]byte(propertyCache), &prop)
+	if err != nil {
+		return nil, err
+	}
+	return &prop, nil
+}
+
+func cacheMinimalProperty(ctx context.Context, client *redis.Client, prop *pb.MinimalProperty) {
+	propertyBytes, err := json.Marshal(prop)
+	if err == nil {
+		client.Set(ctx, redisMinimalPropertyBase+prop.Id, propertyBytes, 0).Err()
 	}
 }

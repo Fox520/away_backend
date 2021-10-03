@@ -23,6 +23,9 @@ import (
 
 var logger = log.New(os.Stderr, "property_service: ", log.LstdFlags|log.Lshortfile)
 
+const propertiesGeo = "properties_geo"
+const minimalPropertiesGeo = "minimal_properties_geo"
+
 type PropertyServiceServer struct {
 	pb.UnimplementedPropertyServiceServer
 	DB          *sql.DB
@@ -102,9 +105,10 @@ func (server *PropertyServiceServer) GetMultipleProperties(req *pb.GetMultiplePr
 	}
 	// Convert radius (km) to meters
 	radius = radius * 1000
-	results, err := server.RedisClient.GeoRadius(stream.Context(), "properties_geo", float64(req.Longitude), float64(req.Latitude), &redis.GeoRadiusQuery{
+	results, err := server.RedisClient.GeoRadius(stream.Context(), propertiesGeo, float64(req.Longitude), float64(req.Latitude), &redis.GeoRadiusQuery{
 		Radius: float64(radius),
 		Unit:   "m",
+		Sort:   "ASC",
 	}).Result()
 
 	properties := make([]*pb.Property, 0, 10)
@@ -262,7 +266,7 @@ func (server *PropertyServiceServer) GetMultipleProperties(req *pb.GetMultiplePr
 		}
 		response.Property = property
 		// Cache property
-		server.RedisClient.GeoAdd(stream.Context(), "properties_geo", &redis.GeoLocation{
+		server.RedisClient.GeoAdd(stream.Context(), propertiesGeo, &redis.GeoLocation{
 			Longitude: float64(property.Longitude),
 			Latitude:  float64(property.Latitude),
 			Name:      property.Id,
@@ -285,24 +289,65 @@ func (server *PropertyServiceServer) GetMinimalInfoProperties(req *pb.GetMinimal
 	// Convert radius (km) to meters
 	radius = radius * 1000
 
-	properties, err := minimalQuery(server.DB, req.Latitude, req.Longitude, radius, false)
-	if err != nil {
-		return err
-	}
+	results, err := server.RedisClient.GeoRadius(stream.Context(), minimalPropertiesGeo, float64(req.Longitude), float64(req.Latitude), &redis.GeoRadiusQuery{
+		Radius: float64(radius),
+		Unit:   "m",
+		Sort:   "ASC",
+	}).Result()
 
-	token := meta[auth.ContextTokenKey]
-	md := metadata.New(map[string]string{"token": token})
-	requestContext := metadata.NewOutgoingContext(stream.Context(), md)
-	for _, prop := range properties {
-		// Attempt adding user profile
-		userResponse, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: prop.UserID})
-		if err != nil {
-			logger.Println(err)
+	properties := make([]*pb.MinimalProperty, 0, 10)
+
+	defer func() {
+		properties = nil
+	}()
+
+	if err == nil {
+		// Cache hit
+		for _, geo := range results {
+			prop, err := getCachedMinimalProperty(stream.Context(), server.RedisClient, geo.Name)
+			if err != nil {
+				// Cache miss, fetch & cache
+				prop, err = fetchAndCacheMinimalProperty(stream.Context(), server.DB, server.RedisClient, geo.Name)
+				if err != nil {
+					continue
+				}
+			}
+			properties = append(properties, prop)
 		}
-		stream.Send(&pb.GetMinimalPropertiesResponse{SingleMinimalProperty: &pb.SingleMinimalProperty{
-			Property: prop,
-			Owner:    userResponse,
-		}})
+	}
+	if len(properties) == 0 {
+		properties, err = fetchAndCacheMinimalProperties(stream.Context(), server.DB, server.RedisClient, req.Latitude, req.Longitude, radius, false)
+		if err != nil {
+			return err
+		}
+	}
+	var owners map[string]*user_pb.GetUserResponse
+	for _, property := range properties {
+		var singleMinimalProperty pb.SingleMinimalProperty
+		// Avoid retrieving already fetched profiles
+		if owners[property.UserID] == nil {
+			// Attempt adding user profile
+			token := meta[auth.ContextTokenKey]
+			md := metadata.New(map[string]string{"token": token})
+			requestContext := metadata.NewOutgoingContext(stream.Context(), md)
+			res, err := server.UserClient.GetUser(requestContext, &user_pb.GetUserRequest{Id: property.UserID})
+			if err == nil {
+				singleMinimalProperty.Owner = res
+			} else {
+				logger.Println(err)
+			}
+		} else {
+			singleMinimalProperty.Owner = owners[property.UserID]
+		}
+		singleMinimalProperty.Property = property
+		// Cache property for this location
+		server.RedisClient.GeoAdd(stream.Context(), minimalPropertiesGeo, &redis.GeoLocation{
+			Longitude: float64(property.Longitude),
+			Latitude:  float64(property.Latitude),
+			Name:      property.Id,
+		})
+
+		stream.Send(&pb.GetMinimalPropertiesResponse{SingleMinimalProperty: &singleMinimalProperty})
 	}
 
 	return nil
@@ -318,7 +363,7 @@ func (server *PropertyServiceServer) GetPromotedProperties(ctx context.Context, 
 	radius = radius * 1000
 
 	var promotedResponse pb.PromotedResponse
-	properties, err := minimalQuery(server.DB, pr.Latitude, pr.Longitude, radius, true)
+	properties, err := fetchAndCacheMinimalProperties(ctx, server.DB, server.RedisClient, pr.Latitude, pr.Longitude, radius, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -453,6 +498,10 @@ func (server *PropertyServiceServer) DeleteProperty(ctx context.Context, dr *pb.
 	if err != nil {
 		return nil, err
 	}
+	// Clear from cache
+	server.RedisClient.ZRem(ctx, propertiesGeo, dr.PropertyID)
+	server.RedisClient.ZRem(ctx, minimalPropertiesGeo, dr.PropertyID)
+	server.RedisClient.Del(ctx, redisPropertyBase+dr.PropertyID, redisMinimalPropertyBase+dr.PropertyID)
 	return &pb.DeletePropertyResponse{
 		Status: true,
 	}, nil
