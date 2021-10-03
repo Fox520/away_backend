@@ -1,4 +1,4 @@
-// protoc --go_out=.\\ --go-grpc_out=.\\ -I=protos protos/property_service.proto
+// protoc --go_out=.\\ --go-grpc_out=.\\ -I=protos -I=..\\user_service\\protos  protos/property_service.proto
 package main
 
 import (
