@@ -53,6 +53,8 @@ message MinimalProperty {
     google.protobuf.Timestamp postedDate = 13;
     repeated Photo photos = 14;
     string userID = 15;
+    float latitude = 16;
+    float longitude = 17;
 }
 
 message Photo {
