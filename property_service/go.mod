@@ -8,9 +8,12 @@ require (
 	github.com/Fox520/away_backend/user_service v0.0.0-20211002083601-7bc74af9d4d6
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/kr/pretty v0.3.0
 	github.com/lib/pq v1.10.3
+	github.com/oxequa/grace v0.0.0-20180330101621-d1b62e904ab2
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
+	googlemaps.github.io/maps v1.3.2
 )
 
 replace github.com/Fox520/away_backend/auth => ../auth
@@ -29,7 +32,6 @@ require (
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mitchellh/mapstructure v1.4.2 // indirect
@@ -51,7 +53,6 @@ require (
 	google.golang.org/api v0.58.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20211001223012-bfb93cce50d9 // indirect
-	googlemaps.github.io/maps v1.3.2 // indirect
 	gopkg.in/ini.v1 v1.63.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

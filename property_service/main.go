@@ -12,6 +12,7 @@ import (
 	server "github.com/Fox520/away_backend/property_service/server"
 	user_pb "github.com/Fox520/away_backend/user_service/pb"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/oxequa/grace"
 	"google.golang.org/grpc"
 )
 
@@ -44,9 +45,28 @@ func main() {
 		userClient = user_pb.NewUserServiceClient(conn)
 	}
 	pb.RegisterPropertyServiceServer(grpcServer, server.NewPropertyServiceServer(cfg, userClient))
+	// Upon panic, try restarting. Max 3 times
+	var restartAttempts int = 0
+	for {
+		err = start(grpcServer, lis)
+		if err == nil {
+			break
+		}
+		if restartAttempts < 3 {
+			restartAttempts += 1
+			logger.Println("Restarting...")
+		} else {
+			logger.Println("Shutting down")
+			break
+		}
+	}
 
+}
+
+func start(grpcServer *grpc.Server, lis net.Listener) (e error) {
+	defer grace.Recover(&e)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve gRPC server: %v", err)
 	}
-
+	return
 }
