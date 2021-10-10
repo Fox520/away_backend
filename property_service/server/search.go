@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"github.com/kr/pretty"
@@ -35,11 +36,28 @@ func performSearch(ctx context.Context, sessionToken maps.PlaceAutocompleteSessi
 	return resp.Predictions, nil
 
 }
+func getLocation(ctx context.Context, sessionToken maps.PlaceAutocompleteSessionToken, placeId *string) (maps.LatLng, error) {
+	if getMapsClient() == nil {
+		return maps.LatLng{}, status.Error(codes.Internal, "Cannot perform search now.")
+	}
+	r := &maps.PlaceDetailsRequest{
+		PlaceID:      *placeId,
+		SessionToken: sessionToken,
+	}
+	resp, err := getMapsClient().PlaceDetails(ctx, r)
+	if err != nil {
+		return maps.LatLng{}, status.Error(codes.Internal, err.Error())
+	}
+
+	pretty.Println(resp)
+
+	return resp.Geometry.Location, nil
+
+}
 
 func getMapsClient() *maps.Client {
 	once.Do(func() {
-		// TODO: read key from env
-		client, err := maps.NewClient(maps.WithAPIKey(""))
+		client, err := maps.NewClient(maps.WithAPIKey(os.Getenv("MAPS_KEY")))
 		if err != nil {
 			logger.Println(err)
 			mapsClient = nil

@@ -600,11 +600,21 @@ func (server *PropertyServiceServer) LocationSearch(stream pb.PropertyService_Lo
 				return err
 			}
 
-			}
-
 		case *pb.LocationSearchRequest_Details:
-			// TODO: lat/lng
-			// stream.Send()
+			location, err := getLocation(stream.Context(), sessionToken, &req.Details.PlaceID)
+			if err != nil {
+				return err
+			}
+			stream.Send(&pb.LocationSearchResponse{
+				ResponseOneof: &pb.LocationSearchResponse_Details{
+					Details: &pb.LocationDetails{
+						Latitude:  float32(location.Lat),
+						Longitude: float32(location.Lng),
+						PlaceID:   req.Details.PlaceID,
+					},
+				},
+			})
+			stream.Context().Done()
 			return nil
 		}
 
