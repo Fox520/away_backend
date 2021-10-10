@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 const redisPropertyBase = "property:"
 const redisMinimalPropertyBase = "minimal_property:"
 
-func topAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) {
+func featuredAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) {
 
 	var areas []*pb.FeaturedArea
 	// src https://dba.stackexchange.com/a/158422
@@ -308,6 +309,9 @@ func fetchAndCacheSingleProperty(ctx context.Context, DB *sql.DB, client *redis.
 }
 
 func getCachedSingleProperty(ctx context.Context, client *redis.Client, propertyId string) (*pb.Property, error) {
+	if !shouldUseRedis(ctx, client) {
+		return nil, errors.New("cannot connect to redis")
+	}
 	var prop pb.Property
 	propertyCache, err := client.Get(ctx, redisPropertyBase+propertyId).Result()
 	if err != nil {
@@ -321,6 +325,9 @@ func getCachedSingleProperty(ctx context.Context, client *redis.Client, property
 }
 
 func cacheSingleProperty(ctx context.Context, client *redis.Client, prop *pb.Property) {
+	if !shouldUseRedis(ctx, client) {
+		return
+	}
 	propertyBytes, err := json.Marshal(prop)
 	if err == nil {
 		client.Set(ctx, redisPropertyBase+prop.Id, propertyBytes, 0).Err()
@@ -328,6 +335,9 @@ func cacheSingleProperty(ctx context.Context, client *redis.Client, prop *pb.Pro
 }
 
 func getCachedMinimalProperty(ctx context.Context, client *redis.Client, propertyId string) (*pb.MinimalProperty, error) {
+	if !shouldUseRedis(ctx, client) {
+		return nil, errors.New("cannot connect to redis")
+	}
 	var prop pb.MinimalProperty
 	propertyCache, err := client.Get(ctx, redisMinimalPropertyBase+propertyId).Result()
 	if err != nil {
@@ -341,8 +351,34 @@ func getCachedMinimalProperty(ctx context.Context, client *redis.Client, propert
 }
 
 func cacheMinimalProperty(ctx context.Context, client *redis.Client, prop *pb.MinimalProperty) {
+	if !shouldUseRedis(ctx, client) {
+		return
+	}
 	propertyBytes, err := json.Marshal(prop)
 	if err == nil {
 		client.Set(ctx, redisMinimalPropertyBase+prop.Id, propertyBytes, 0).Err()
 	}
+}
+
+var lastTimeRedisWasDown time.Time
+var lastTimeRedisWasUp time.Time
+
+// Checks the availability of redis every 3 minutes
+// Should redis go down, requests will degrade for around 3 minutes
+// Note: Adds TIME_OUTms to request if redis is unreachable
+func shouldUseRedis(ctx context.Context, client *redis.Client) bool {
+	if time.Since(lastTimeRedisWasDown).Seconds() < 180 {
+		fmt.Println("redis is down* (3 min window)")
+		return false
+	}
+	if time.Since(lastTimeRedisWasUp).Seconds() < 180 {
+		return true
+	}
+	_, err := client.Ping(ctx).Result()
+	if err != nil {
+		lastTimeRedisWasDown = time.Now()
+	} else {
+		lastTimeRedisWasUp = time.Now()
+	}
+	return err == nil
 }

@@ -25,8 +25,8 @@ import (
 
 var logger = log.New(os.Stderr, "property_service: ", log.LstdFlags|log.Lshortfile)
 
-const propertiesGeo = "properties_geo"
-const minimalPropertiesGeo = "minimal_properties_geo"
+const propertiesGeo string = "properties_geo"
+const minimalPropertiesGeo string = "minimal_properties_geo"
 
 type PropertyServiceServer struct {
 	pb.UnimplementedPropertyServiceServer
@@ -557,7 +557,7 @@ func (server *PropertyServiceServer) DeleteProperty(ctx context.Context, dr *pb.
 
 func (server *PropertyServiceServer) GetFeaturedAreas(ctx context.Context, tr *pb.FeaturedAreasRequest) (*pb.FeaturedAreasResponse, error) {
 	var response pb.FeaturedAreasResponse
-	res, err := topAreasQuery(server.DB, tr.Country)
+	res, err := featuredAreasQuery(server.DB, tr.Country)
 	if err != nil {
 		return nil, err
 	}
