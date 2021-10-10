@@ -13,7 +13,6 @@ import (
 	auth "github.com/Fox520/away_backend/auth"
 	config "github.com/Fox520/away_backend/config"
 	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
-	"github.com/go-redis/redis/v8"
 	pq "github.com/lib/pq"
 	"github.com/olivere/elastic/v7"
 	"google.golang.org/grpc/codes"
@@ -26,13 +25,13 @@ var logger = log.New(os.Stderr, "user_service: ", log.LstdFlags|log.Lshortfile)
 const ES_TIMEOUT time.Duration = 600 * time.Millisecond
 
 // local tests show DB call is faster than hitting elastic
-const USE_ELASTIC_SEARCH = false
+// Set to false when node is unreachable during startup
+var USE_ELASTIC_SEARCH = true
 
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
-	DB          *sql.DB
-	Elastic     *elastic.Client
-	RedisClient *redis.Client
+	DB      *sql.DB
+	Elastic *elastic.Client
 }
 
 func NewUserServiceServer(cfg config.Config) *UserServiceServer {
@@ -46,22 +45,16 @@ func NewUserServiceServer(cfg config.Config) *UserServiceServer {
 	if err != nil {
 		panic(err)
 	}
-	rdb := redis.NewClient(&redis.Options{
-		Addr:        "localhost:6379",
-		Password:    "",
-		DB:          0,
-		MaxRetries:  -1,
-		DialTimeout: 400 * time.Millisecond,
-	})
 	logger.Print("Successfully connected to DB!")
-	client, err := elastic.NewSimpleClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
+	client, err := elastic.NewClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
 	if err != nil {
+		USE_ELASTIC_SEARCH = false
 		logger.Println(err)
+		logger.Println("Starting without Elasticsearch")
 	}
 	return &UserServiceServer{
-		DB:          db,
-		Elastic:     client,
-		RedisClient: rdb,
+		DB:      db,
+		Elastic: client,
 	}
 }
 
