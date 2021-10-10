@@ -582,15 +582,23 @@ func (server *PropertyServiceServer) LocationSearch(stream pb.PropertyService_Lo
 			if err != nil {
 				return err
 			}
-			for _, prediction := range predictions {
-				response := pb.LocationSearchResponse{ResponseOneof: &pb.LocationSearchResponse_Autocomplete{Autocomplete: &pb.LocationAutocomplete{
+			// Map each prediction to a LocationAutocomplete
+			autocompletes := make([]*pb.LocationAutocomplete, len(predictions))
+			for index, prediction := range predictions {
+				autocompletes[index] = &pb.LocationAutocomplete{
 					Title:         prediction.StructuredFormatting.MainText,
 					SecondaryText: prediction.StructuredFormatting.SecondaryText,
 					PlaceID:       prediction.PlaceID,
-				}}}
-				if err := stream.Send(&response); err != nil {
-					return err
 				}
+
+			}
+			// Send off the autocomplete slice
+			response := pb.LocationSearchResponse{ResponseOneof: &pb.LocationSearchResponse_AutocompleteResponse{AutocompleteResponse: &pb.LocationAutocompleteResponse{
+				Responses: autocompletes,
+			}}}
+			if err := stream.Send(&response); err != nil {
+				return err
+			}
 
 			}
 

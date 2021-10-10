@@ -13,6 +13,7 @@ import (
 var mapsClient *maps.Client
 var once sync.Once
 
+// Retrieves locations matched with input
 func performSearch(ctx context.Context, sessionToken maps.PlaceAutocompleteSessionToken, input *string, country string) ([]maps.AutocompletePrediction, error) {
 	if getMapsClient() == nil {
 		return nil, status.Error(codes.Internal, "Cannot perform search now.")
