@@ -176,13 +176,6 @@ func (server *PropertyServiceServer) GetMultipleProperties(req *pb.GetMultiplePr
 				25000 = search radius (in m)
 				*/
 				earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(latitude, longitude) 
-
-				/* This second condition (which is slower) will "refine" 
-				the previous search, to include only the points within the
-				circumference.
-				*/
-				AND earth_distance(ll_to_earth($1, $2), 
-						ll_to_earth(latitude, longitude)) < $3 
 		`,
 			req.Latitude,
 			req.Longitude,
