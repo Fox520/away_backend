@@ -217,7 +217,7 @@ Looks up property identified by the provided property id and
 returns a property for the given id if that property is found
 */
 func fetchAndCacheSingleProperty(ctx context.Context, DB *sql.DB, client *redis.Client, id string) (*pb.Property, error) {
-	var property *pb.Property
+	var property *pb.Property = &pb.Property{}
 	var tempTime time.Time
 	err := DB.QueryRow(`
 			SELECT
