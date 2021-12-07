@@ -30,7 +30,7 @@ func featuredAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) 
 			latitude,
 			longitude
 		FROM
-			top_areas
+			featured_areas
 		WHERE
 			country = $1`,
 		strings.ToLower(country),
