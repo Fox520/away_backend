@@ -22,7 +22,6 @@ const redisMinimalPropertyBase = "minimal_property:"
 func featuredAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) {
 
 	var areas []*pb.FeaturedArea
-	// src https://dba.stackexchange.com/a/158422
 	propertyRows, err := DB.Query(`
 		SELECT
 			title,
@@ -49,6 +48,13 @@ func featuredAreasQuery(DB *sql.DB, country string) ([]*pb.FeaturedArea, error) 
 		)
 		if err != nil {
 			continue
+		}
+		// me: inserts this url ...path?raw=true
+		// me: select url from featured_areas
+		// postgres: ...path\?raw=True
+		// me:
+		if strings.Contains(area.PhotoURL, "github") {
+			area.PhotoURL = fmt.Sprint(area.PhotoURL, "?raw=True")
 		}
 		areas = append(areas, &area)
 	}
