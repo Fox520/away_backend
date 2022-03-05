@@ -82,7 +82,8 @@ func fetchAndCacheMinimalProperties(ctx context.Context, DB *sql.DB, client *red
 			p.currency,
 			p.price,
 			p.posted_date,
-			p.user_id
+			p.user_id,
+			p.town
 		FROM
 			properties p,
 			lateral(SELECT id, p_type FROM property_type WHERE id = p.property_type_id) as ptype,
@@ -117,6 +118,7 @@ func fetchAndCacheMinimalProperties(ctx context.Context, DB *sql.DB, client *red
 			&property.Price,
 			&tempTime,
 			&property.UserID,
+			&property.Town,
 		)
 		if err != nil {
 			continue
@@ -168,7 +170,8 @@ func fetchAndCacheMinimalProperty(ctx context.Context, DB *sql.DB, client *redis
 				p.posted_date,
 				p.user_id,
 				p.latitude,
-				p.longitude
+				p.longitude,
+				p.town
 			FROM
 				properties p,
 				lateral(SELECT id, p_type FROM property_type WHERE id = p.property_type_id) as ptype,
@@ -192,6 +195,7 @@ func fetchAndCacheMinimalProperty(ctx context.Context, DB *sql.DB, client *redis
 		&property.UserID,
 		&property.Latitude,
 		&property.Longitude,
+		&property.Town,
 	)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())

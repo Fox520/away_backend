@@ -56,6 +56,7 @@ message MinimalProperty {
     string userID = 15;
     float latitude = 16;
     float longitude = 17;
+    string town = 18;
 }
 
 message Photo {
