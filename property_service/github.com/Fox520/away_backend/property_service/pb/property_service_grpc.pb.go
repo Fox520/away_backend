@@ -18,15 +18,15 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PropertyServiceClient interface {
-	GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error)
+	GetMinimalInfoProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error)
 	GetSingleProperty(ctx context.Context, in *GetSinglePropertyRequest, opts ...grpc.CallOption) (*SinglePropertyResponse, error)
 	GetUserProperties(ctx context.Context, in *GetUserPropertiesRequest, opts ...grpc.CallOption) (*GetUserPropertiesResponse, error)
-	GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error)
+	GetMultipleProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error)
 	CreateProperty(ctx context.Context, in *CreatePropertyRequest, opts ...grpc.CallOption) (*Property, error)
 	UpdateProperty(ctx context.Context, in *Property, opts ...grpc.CallOption) (*Property, error)
 	DeleteProperty(ctx context.Context, in *DeletePropertyRequest, opts ...grpc.CallOption) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(ctx context.Context, in *FeaturedAreasRequest, opts ...grpc.CallOption) (*FeaturedAreasResponse, error)
-	GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error)
+	GetPromotedProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error)
 	LocationSearch(ctx context.Context, opts ...grpc.CallOption) (PropertyService_LocationSearchClient, error)
 }
 
@@ -38,28 +38,27 @@ func NewPropertyServiceClient(cc grpc.ClientConnInterface) PropertyServiceClient
 	return &propertyServiceClient{cc}
 }
 
-func (c *propertyServiceClient) GetMinimalInfoProperties(ctx context.Context, in *GetMinimalPropertiesRequest, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error) {
+func (c *propertyServiceClient) GetMinimalInfoProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMinimalInfoPropertiesClient, error) {
 	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[0], "/property.service.PropertyService/GetMinimalInfoProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &propertyServiceGetMinimalInfoPropertiesClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type PropertyService_GetMinimalInfoPropertiesClient interface {
+	Send(*GetMinimalPropertiesRequest) error
 	Recv() (*GetMinimalPropertiesResponse, error)
 	grpc.ClientStream
 }
 
 type propertyServiceGetMinimalInfoPropertiesClient struct {
 	grpc.ClientStream
+}
+
+func (x *propertyServiceGetMinimalInfoPropertiesClient) Send(m *GetMinimalPropertiesRequest) error {
+	return x.ClientStream.SendMsg(m)
 }
 
 func (x *propertyServiceGetMinimalInfoPropertiesClient) Recv() (*GetMinimalPropertiesResponse, error) {
@@ -88,28 +87,27 @@ func (c *propertyServiceClient) GetUserProperties(ctx context.Context, in *GetUs
 	return out, nil
 }
 
-func (c *propertyServiceClient) GetMultipleProperties(ctx context.Context, in *GetMultiplePropertyRequest, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error) {
+func (c *propertyServiceClient) GetMultipleProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetMultiplePropertiesClient, error) {
 	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[1], "/property.service.PropertyService/GetMultipleProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &propertyServiceGetMultiplePropertiesClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type PropertyService_GetMultiplePropertiesClient interface {
+	Send(*GetMultiplePropertyRequest) error
 	Recv() (*GetMultiplePropertyResponse, error)
 	grpc.ClientStream
 }
 
 type propertyServiceGetMultiplePropertiesClient struct {
 	grpc.ClientStream
+}
+
+func (x *propertyServiceGetMultiplePropertiesClient) Send(m *GetMultiplePropertyRequest) error {
+	return x.ClientStream.SendMsg(m)
 }
 
 func (x *propertyServiceGetMultiplePropertiesClient) Recv() (*GetMultiplePropertyResponse, error) {
@@ -156,28 +154,27 @@ func (c *propertyServiceClient) GetFeaturedAreas(ctx context.Context, in *Featur
 	return out, nil
 }
 
-func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, in *PromotedRequest, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error) {
+func (c *propertyServiceClient) GetPromotedProperties(ctx context.Context, opts ...grpc.CallOption) (PropertyService_GetPromotedPropertiesClient, error) {
 	stream, err := c.cc.NewStream(ctx, &PropertyService_ServiceDesc.Streams[2], "/property.service.PropertyService/GetPromotedProperties", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &propertyServiceGetPromotedPropertiesClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type PropertyService_GetPromotedPropertiesClient interface {
+	Send(*PromotedRequest) error
 	Recv() (*PromotedResponse, error)
 	grpc.ClientStream
 }
 
 type propertyServiceGetPromotedPropertiesClient struct {
 	grpc.ClientStream
+}
+
+func (x *propertyServiceGetPromotedPropertiesClient) Send(m *PromotedRequest) error {
+	return x.ClientStream.SendMsg(m)
 }
 
 func (x *propertyServiceGetPromotedPropertiesClient) Recv() (*PromotedResponse, error) {
@@ -223,15 +220,15 @@ func (x *propertyServiceLocationSearchClient) Recv() (*LocationSearchResponse, e
 // All implementations must embed UnimplementedPropertyServiceServer
 // for forward compatibility
 type PropertyServiceServer interface {
-	GetMinimalInfoProperties(*GetMinimalPropertiesRequest, PropertyService_GetMinimalInfoPropertiesServer) error
+	GetMinimalInfoProperties(PropertyService_GetMinimalInfoPropertiesServer) error
 	GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error)
 	GetUserProperties(context.Context, *GetUserPropertiesRequest) (*GetUserPropertiesResponse, error)
-	GetMultipleProperties(*GetMultiplePropertyRequest, PropertyService_GetMultiplePropertiesServer) error
+	GetMultipleProperties(PropertyService_GetMultiplePropertiesServer) error
 	CreateProperty(context.Context, *CreatePropertyRequest) (*Property, error)
 	UpdateProperty(context.Context, *Property) (*Property, error)
 	DeleteProperty(context.Context, *DeletePropertyRequest) (*DeletePropertyResponse, error)
 	GetFeaturedAreas(context.Context, *FeaturedAreasRequest) (*FeaturedAreasResponse, error)
-	GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error
+	GetPromotedProperties(PropertyService_GetPromotedPropertiesServer) error
 	LocationSearch(PropertyService_LocationSearchServer) error
 	mustEmbedUnimplementedPropertyServiceServer()
 }
@@ -240,7 +237,7 @@ type PropertyServiceServer interface {
 type UnimplementedPropertyServiceServer struct {
 }
 
-func (UnimplementedPropertyServiceServer) GetMinimalInfoProperties(*GetMinimalPropertiesRequest, PropertyService_GetMinimalInfoPropertiesServer) error {
+func (UnimplementedPropertyServiceServer) GetMinimalInfoProperties(PropertyService_GetMinimalInfoPropertiesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetMinimalInfoProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) GetSingleProperty(context.Context, *GetSinglePropertyRequest) (*SinglePropertyResponse, error) {
@@ -249,7 +246,7 @@ func (UnimplementedPropertyServiceServer) GetSingleProperty(context.Context, *Ge
 func (UnimplementedPropertyServiceServer) GetUserProperties(context.Context, *GetUserPropertiesRequest) (*GetUserPropertiesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserProperties not implemented")
 }
-func (UnimplementedPropertyServiceServer) GetMultipleProperties(*GetMultiplePropertyRequest, PropertyService_GetMultiplePropertiesServer) error {
+func (UnimplementedPropertyServiceServer) GetMultipleProperties(PropertyService_GetMultiplePropertiesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetMultipleProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) CreateProperty(context.Context, *CreatePropertyRequest) (*Property, error) {
@@ -264,7 +261,7 @@ func (UnimplementedPropertyServiceServer) DeleteProperty(context.Context, *Delet
 func (UnimplementedPropertyServiceServer) GetFeaturedAreas(context.Context, *FeaturedAreasRequest) (*FeaturedAreasResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeaturedAreas not implemented")
 }
-func (UnimplementedPropertyServiceServer) GetPromotedProperties(*PromotedRequest, PropertyService_GetPromotedPropertiesServer) error {
+func (UnimplementedPropertyServiceServer) GetPromotedProperties(PropertyService_GetPromotedPropertiesServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetPromotedProperties not implemented")
 }
 func (UnimplementedPropertyServiceServer) LocationSearch(PropertyService_LocationSearchServer) error {
@@ -284,15 +281,12 @@ func RegisterPropertyServiceServer(s grpc.ServiceRegistrar, srv PropertyServiceS
 }
 
 func _PropertyService_GetMinimalInfoProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetMinimalPropertiesRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(PropertyServiceServer).GetMinimalInfoProperties(m, &propertyServiceGetMinimalInfoPropertiesServer{stream})
+	return srv.(PropertyServiceServer).GetMinimalInfoProperties(&propertyServiceGetMinimalInfoPropertiesServer{stream})
 }
 
 type PropertyService_GetMinimalInfoPropertiesServer interface {
 	Send(*GetMinimalPropertiesResponse) error
+	Recv() (*GetMinimalPropertiesRequest, error)
 	grpc.ServerStream
 }
 
@@ -302,6 +296,14 @@ type propertyServiceGetMinimalInfoPropertiesServer struct {
 
 func (x *propertyServiceGetMinimalInfoPropertiesServer) Send(m *GetMinimalPropertiesResponse) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *propertyServiceGetMinimalInfoPropertiesServer) Recv() (*GetMinimalPropertiesRequest, error) {
+	m := new(GetMinimalPropertiesRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _PropertyService_GetSingleProperty_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -341,15 +343,12 @@ func _PropertyService_GetUserProperties_Handler(srv interface{}, ctx context.Con
 }
 
 func _PropertyService_GetMultipleProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetMultiplePropertyRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(PropertyServiceServer).GetMultipleProperties(m, &propertyServiceGetMultiplePropertiesServer{stream})
+	return srv.(PropertyServiceServer).GetMultipleProperties(&propertyServiceGetMultiplePropertiesServer{stream})
 }
 
 type PropertyService_GetMultiplePropertiesServer interface {
 	Send(*GetMultiplePropertyResponse) error
+	Recv() (*GetMultiplePropertyRequest, error)
 	grpc.ServerStream
 }
 
@@ -359,6 +358,14 @@ type propertyServiceGetMultiplePropertiesServer struct {
 
 func (x *propertyServiceGetMultiplePropertiesServer) Send(m *GetMultiplePropertyResponse) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *propertyServiceGetMultiplePropertiesServer) Recv() (*GetMultiplePropertyRequest, error) {
+	m := new(GetMultiplePropertyRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _PropertyService_CreateProperty_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -434,15 +441,12 @@ func _PropertyService_GetFeaturedAreas_Handler(srv interface{}, ctx context.Cont
 }
 
 func _PropertyService_GetPromotedProperties_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(PromotedRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(PropertyServiceServer).GetPromotedProperties(m, &propertyServiceGetPromotedPropertiesServer{stream})
+	return srv.(PropertyServiceServer).GetPromotedProperties(&propertyServiceGetPromotedPropertiesServer{stream})
 }
 
 type PropertyService_GetPromotedPropertiesServer interface {
 	Send(*PromotedResponse) error
+	Recv() (*PromotedRequest, error)
 	grpc.ServerStream
 }
 
@@ -452,6 +456,14 @@ type propertyServiceGetPromotedPropertiesServer struct {
 
 func (x *propertyServiceGetPromotedPropertiesServer) Send(m *PromotedResponse) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *propertyServiceGetPromotedPropertiesServer) Recv() (*PromotedRequest, error) {
+	m := new(PromotedRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _PropertyService_LocationSearch_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -517,16 +529,19 @@ var PropertyService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetMinimalInfoProperties",
 			Handler:       _PropertyService_GetMinimalInfoProperties_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 		{
 			StreamName:    "GetMultipleProperties",
 			Handler:       _PropertyService_GetMultipleProperties_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 		{
 			StreamName:    "GetPromotedProperties",
 			Handler:       _PropertyService_GetPromotedProperties_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 		{
 			StreamName:    "LocationSearch",

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"os"
 	"sync"
 
 	"github.com/kr/pretty"
@@ -57,7 +56,7 @@ func getLocation(ctx context.Context, sessionToken maps.PlaceAutocompleteSession
 
 func getMapsClient() *maps.Client {
 	once.Do(func() {
-		client, err := maps.NewClient(maps.WithAPIKey(os.Getenv("MAPS_KEY")))
+		client, err := maps.NewClient(maps.WithAPIKey("AIzaSyDNfrYn4wsYNpoxENEEuscxOAkcDUxg3lA")) //maps.NewClient(maps.WithAPIKey(os.Getenv("MAPS_KEY")))
 		if err != nil {
 			logger.Println(err)
 			mapsClient = nil

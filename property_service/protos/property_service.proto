@@ -86,7 +86,7 @@ message PromotedRequest {
 }
 
 message PromotedResponse {
-    SingleMinimalProperty property = 1;
+    repeated SingleMinimalProperty properties = 1;
 }
 
 message DeletePropertyRequest{
@@ -114,7 +114,7 @@ message GetMultiplePropertyRequest {
 }
 
 message GetMultiplePropertyResponse {
-    SinglePropertyResponse response = 1;
+    repeated SinglePropertyResponse response = 1;
 }
 
 message CreatePropertyRequest {
@@ -128,7 +128,7 @@ message GetMinimalPropertiesRequest {
 }
 
 message GetMinimalPropertiesResponse {
-    SingleMinimalProperty singleMinimalProperty = 1;
+    repeated SingleMinimalProperty singleMinimalProperties = 1;
 }
 
 message SingleMinimalProperty {
@@ -184,14 +184,14 @@ message LocationAutocomplete {
 }
 
 service PropertyService {
-    rpc GetMinimalInfoProperties (GetMinimalPropertiesRequest) returns (stream GetMinimalPropertiesResponse){}; // Useful when navigating on map
+    rpc GetMinimalInfoProperties (stream GetMinimalPropertiesRequest) returns (stream GetMinimalPropertiesResponse){}; // Useful when navigating on map
     rpc GetSingleProperty (GetSinglePropertyRequest) returns (SinglePropertyResponse){};
     rpc GetUserProperties (GetUserPropertiesRequest) returns (GetUserPropertiesResponse){};
-    rpc GetMultipleProperties (GetMultiplePropertyRequest) returns (stream GetMultiplePropertyResponse){};
+    rpc GetMultipleProperties (stream GetMultiplePropertyRequest) returns (stream GetMultiplePropertyResponse){};
     rpc CreateProperty (CreatePropertyRequest) returns (Property){};
     rpc UpdateProperty (Property) returns (Property){};
     rpc DeleteProperty (DeletePropertyRequest) returns (DeletePropertyResponse){};
     rpc GetFeaturedAreas (FeaturedAreasRequest) returns (FeaturedAreasResponse){};
-    rpc GetPromotedProperties (PromotedRequest) returns (stream PromotedResponse){};
+    rpc GetPromotedProperties (stream PromotedRequest) returns (stream PromotedResponse){};
     rpc LocationSearch (stream LocationSearchRequest) returns (stream LocationSearchResponse){};
 }
