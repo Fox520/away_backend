@@ -56,6 +56,7 @@ message AwayUser {
     string subscriptionStatus = 7;
     google.protobuf.Timestamp createdAt = 8;
     string profilePictureUrl = 9;
+    string subscriptionStatusDescription = 10;
 }
 
 message MinimalUserInfo {
@@ -67,8 +68,18 @@ message MinimalUserInfo {
     string profilePictureUrl = 6;
 }
 
+message StreamUserInfoRequest {
+    
+}
+
+message StreamUserInfoResponse {
+    AwayUser user = 1;
+
+}
+
 service UserService {
     rpc GetUser (GetUserRequest) returns (GetUserResponse){};
+    rpc StreamUserInfo (StreamUserInfoRequest) returns (stream StreamUserInfoResponse){};
     rpc CreateUser (CreateUserRequest) returns (CreateUserResponse){};
     rpc UpdateUser (UpdateUserRequest) returns (UpdateUserResponse){};
     rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse){};

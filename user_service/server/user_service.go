@@ -30,8 +30,9 @@ var USE_ELASTIC_SEARCH = true
 
 type UserServiceServer struct {
 	pb.UnimplementedUserServiceServer
-	DB      *sql.DB
-	Elastic *elastic.Client
+	DB              *sql.DB
+	Elastic         *elastic.Client
+	UsersDbListener *pq.Listener
 }
 
 func NewUserServiceServer(cfg config.Config) *UserServiceServer {
@@ -46,15 +47,31 @@ func NewUserServiceServer(cfg config.Config) *UserServiceServer {
 		panic(err)
 	}
 	logger.Print("Successfully connected to DB!")
-	client, err := elastic.NewClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
+	// client, err := elastic.NewClient(elastic.SetURL(cfg.ELASTICSEARCH_URL))
+	client, err := elastic.NewClient(elastic.SetURL("https://localhost:9200"))
 	if err != nil {
 		USE_ELASTIC_SEARCH = false
 		logger.Println(err)
 		logger.Println("Starting without Elasticsearch")
 	}
+
+	reportProblem := func(ev pq.ListenerEventType, err error) {
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+
+	// Create listener for events which occur in the database
+	usersListener := pq.NewListener(connectionString, 10*time.Second, time.Minute, reportProblem)
+	err = usersListener.Listen("user_events")
+	if err != nil {
+		panic(err)
+	}
+
 	return &UserServiceServer{
-		DB:      db,
-		Elastic: client,
+		DB:              db,
+		Elastic:         client,
+		UsersDbListener: usersListener,
 	}
 }
 
@@ -124,7 +141,21 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 			}
 		}
 
-		err := server.DB.QueryRow(`SELECT username, email, bio, device_token, verified, s_status, createdAt, profile_picture_url FROM users WHERE id = $1 LIMIT 1`, userId).Scan(
+		err := server.DB.QueryRow(`
+			SELECT users.username,
+					users.email,
+					users.bio,
+					users.device_token,
+					users.verified,
+					users.s_status,
+					users.createdat,
+					users.profile_picture_url,
+					subscription_status.s_description
+			FROM   users, subscription_status
+			WHERE  id = $1
+					AND users.s_status = subscription_status.s_status
+			LIMIT  1 
+		`, userId).Scan(
 			&user.UserName,
 			&user.Email,
 			&user.Bio,
@@ -133,6 +164,7 @@ func (server *UserServiceServer) GetUser(ctx context.Context, ur *pb.GetUserRequ
 			&user.SubscriptionStatus,
 			&tempTime,
 			&user.ProfilePictureUrl,
+			&user.SubscriptionStatusDescription,
 		)
 		if err != nil {
 			logger.Print("User not found: ", err)
@@ -267,4 +299,101 @@ func (server *UserServiceServer) DeleteUser(ctx context.Context, dr *pb.DeleteUs
 	}
 
 	return &pb.DeleteUserResponse{}, nil
+}
+
+func (server *UserServiceServer) StreamUserInfo(req *pb.StreamUserInfoRequest, stream pb.UserService_StreamUserInfoServer) error {
+	meta := stream.Context().Value(auth.ContextMetaDataKey).(map[string]string)
+
+	userId := meta[auth.ContextUIDKey]
+	// Send initial data
+	res, err := server.GetUser(stream.Context(), &pb.GetUserRequest{
+		Id: userId,
+	})
+	if err != nil {
+		return err
+	}
+	stream.Send(&pb.StreamUserInfoResponse{User: res.GetUser()})
+
+	// We use this to avoid an extra db call
+	// `UPDATE` event does not return previous value, thus store the original for later comparisons
+	currentSubscriptionStatus := res.GetUser().SubscriptionStatus
+	// NB: subscription status description is not in `users`, so events from the table will not include it
+	// Store it in-memory for use in responses
+	currentSubscriptionStatusDescription := res.GetUser().SubscriptionStatusDescription
+
+	for {
+		select {
+		case n := <-server.UsersDbListener.Notify:
+
+			output := streamResult{}
+			if err := json.Unmarshal([]byte(n.Extra), &output); err != nil {
+				logger.Println(err)
+				return err
+			}
+			extractedUser := output.Data
+			// Build the response user struct
+			// We can't directly unmarshal due to timestamp conversion issues
+			resultUser := pb.AwayUser{
+				Id:                 extractedUser.Id,
+				UserName:           extractedUser.UserName,
+				Email:              extractedUser.Email,
+				Bio:                extractedUser.Bio,
+				DeviceToken:        extractedUser.DeviceToken,
+				Verified:           extractedUser.Verified,
+				SubscriptionStatus: extractedUser.SubscriptionStatus,
+				// Retrieve status description from db if it changed
+				SubscriptionStatusDescription: currentSubscriptionStatusDescription,
+			}
+			if resultUser.Id != userId {
+				continue
+			}
+			// Now we can make that call and update in-memory version
+			if resultUser.SubscriptionStatus != currentSubscriptionStatus {
+
+				currentSubscriptionStatus = resultUser.SubscriptionStatus
+				currentSubscriptionStatusDescription = resultUser.SubscriptionStatusDescription
+
+				// todo: create getUser func with direct db access
+				res, err := server.GetUser(stream.Context(), &pb.GetUserRequest{
+					Id: userId,
+				})
+				if err != nil {
+					return err
+				}
+				resultUser = *res.GetUser()
+			}
+			if err := stream.Send(&pb.StreamUserInfoResponse{
+				User: &resultUser,
+			}); err != nil {
+				logger.Println(err)
+				stream.Context().Done()
+				return err
+			}
+
+		case <-time.After(90 * time.Second):
+			// fmt.Println("Received no events for 90 seconds, checking connection")
+			go func() {
+				server.UsersDbListener.Ping()
+			}()
+		}
+	}
+}
+
+type streamResult struct {
+	Table  string        `json:"table"`
+	Action string        `json:"action"`
+	Data   streamUserObj `json:"data"`
+}
+
+// `createdAt` field is excluded for json decode to work; relevant error below
+// parsing time "\"2022-03-06T16:32:03.258088\"" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "\"" as "Z07:00"
+type streamUserObj struct {
+	Id                 string `json:"id"`
+	UserName           string `json:"username"`
+	Email              string `json:"email"`
+	Bio                string `json:"bio"`
+	DeviceToken        string `json:"device_token"`
+	Verified           bool   `json:"verified"`
+	SubscriptionStatus string `json:"s_status"`
+	ProfilePictureUrl  string `json:"profile_picture_url"`
 }
