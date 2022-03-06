@@ -198,3 +198,43 @@ CREATE TABLE IF NOT EXISTS bookings (
     additional_info TEXT,
     CONSTRAINT user_product_pkey PRIMARY KEY (user_id, property_id)
 );
+
+-- stream trigger
+-- https://coussej.github.io/2015/09/15/Listening-to-generic-JSON-notifications-from-PostgreSQL-in-Go/
+CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
+
+    DECLARE 
+        data json;
+        notification json;
+        event_name text;
+    
+    BEGIN
+        event_name := TG_ARGV[0];
+        -- Convert the old or new row to JSON, based on the kind of action.
+        -- Action = DELETE?             -> OLD row
+        -- Action = INSERT or UPDATE?   -> NEW row
+        IF (TG_OP = 'DELETE') THEN
+            data = row_to_json(OLD);
+        ELSE
+            data = row_to_json(NEW);
+        END IF;
+        
+        -- Contruct the notification as a JSON string.
+        notification = json_build_object(
+                          'table',TG_TABLE_NAME,
+                          'action', TG_OP,
+                          'data', data);
+        
+                        
+        -- Execute pg_notify(channel, notification)
+        PERFORM pg_notify(event_name,notification::text);
+        
+        -- Result is ignored since this is an AFTER trigger
+        RETURN NULL; 
+    END;
+    
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER users_notify_event
+AFTER UPDATE ON users
+    FOR EACH ROW EXECUTE PROCEDURE notify_event('user_events');
