@@ -2,6 +2,10 @@ module github.com/Fox520/away_backend/property_service
 
 go 1.17
 
+replace github.com/Fox520/away_backend/config => ../config
+
+replace github.com/Fox520/away_backend/auth => ../auth
+
 require (
 	github.com/Fox520/away_backend/auth v0.0.0-20211002101159-c54e7f2ed213
 	github.com/Fox520/away_backend/config v0.0.0-20211002101159-c54e7f2ed213

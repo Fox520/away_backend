@@ -17,7 +17,7 @@ type Config struct {
 func LoadConfig() (cfg Config, err error) {
 	folder := os.Getenv("CONFIG_FOLDER_PATH")
 	if folder == "" {
-		folder = "C:/Users/Asus/Documents/prog/away_backend/config"
+		folder = "/Users/thomas/Documents/projects/away_backend/config" //"C:/Users/Asus/Documents/prog/away_backend/config"
 	}
 	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")

@@ -15,7 +15,7 @@ var logger = log.New(os.Stderr, "auth: ", log.LstdFlags|log.Lshortfile)
 func SetupFirebaseAuthClient() *auth.Client {
 	serviceAccountKeyPath := os.Getenv("SERVICE_ACCOUNT_KEY_PATH")
 	if serviceAccountKeyPath == "" {
-		serviceAccountKeyPath = "C:/Users/Asus/Documents/prog/away_backend/config/serviceAccountKey.json"
+		serviceAccountKeyPath = "/Users/thomas/Documents/projects/away_backend/config/serviceAccountKey.json" // "C:/Users/Asus/Documents/prog/away_backend/config/serviceAccountKey.json"
 	}
 
 	// Initialise auth client
