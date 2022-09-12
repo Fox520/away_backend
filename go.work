@@ -4,4 +4,5 @@ use (
 	./auth
 	./testhelper
 	./user_service
+	./property_service
 )

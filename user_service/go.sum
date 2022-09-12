@@ -92,6 +92,8 @@ github.com/ClickHouse/clickhouse-go v1.3.12/go.mod h1:EaI/sW7Azgz9UATzd5ZdZHRUhH
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Fox520/away_backend/auth v0.0.0-20210820135334-717789c930c3 h1:WSJiCj7zP3DyzEyr5gt8TMgE/y5p/RjaGIZNqCul2d4=
 github.com/Fox520/away_backend/auth v0.0.0-20210820135334-717789c930c3/go.mod h1:817Y8tv3su/MEvcqUntpFzHyfjDGaIWj2yN2mwF4QP4=
+github.com/Fox520/away_backend/testhelper v0.0.0-20220912010839-1cef95415862 h1:LtxN1I49y0WkSBfrcTqcz9JJmYpTN70UuEKyoydH92Q=
+github.com/Fox520/away_backend/testhelper v0.0.0-20220912010839-1cef95415862/go.mod h1:2UNRnbs/KOXh8uMYVtiDXozcYT/Jak5GsXLL0O1afho=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
 github.com/Microsoft/go-winio v0.4.14/go.mod h1:qXqCSQ3Xa7+6tgxaGTIe4Kpcdsi+P8jBhyzoq1bpyYA=

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users(
 );
 
 CREATE TABLE IF NOT EXISTS subscriptions (
-    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
     s_status VARCHAR(255) NOT NULL,
     CONSTRAINT fk_subscription_status
       FOREIGN KEY(s_status) 
@@ -38,10 +38,10 @@ CREATE TABLE IF NOT EXISTS verification_stage (
 );
 
 CREATE TABLE IF NOT EXISTS user_verifications (
-    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc'),
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc') NOT NULL,
     file_urls TEXT, -- links separated by delimiter
-    v_stage VARCHAR(255),
+    v_stage VARCHAR(255) NOT NULL,
     CONSTRAINT fk_verification_stage
       FOREIGN KEY(v_stage) 
         REFERENCES verification_stage(v_stage)
@@ -92,15 +92,15 @@ CREATE TABLE IF NOT EXISTS properties (
     available boolean DEFAULT true NOT NULL,
     price numeric NOT NULL,
     deposit numeric NOT NULL,
-    sharing_price numeric DEFAULT 0.000000,
+    sharing_price numeric,
     promoted boolean DEFAULT false NOT NULL,
     posted_date timestamp without time zone default (now() at time zone 'utc') NOT NULL,
     pets_allowed boolean DEFAULT false NOT NULL,
     free_wifi boolean DEFAULT false NOT NULL,
     water_included boolean DEFAULT false NOT NULL,
     electricity_included boolean DEFAULT false NOT NULL,
-    latitude numeric,
-    longitude numeric,
+    latitude numeric NOT NULL,
+    longitude numeric NOT NULL,
     PRIMARY KEY(id),
     CONSTRAINT fk_user
       FOREIGN KEY(user_id) 

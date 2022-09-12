@@ -2,15 +2,17 @@ package config
 
 import (
 	"log"
+	"os"
+	"sync"
 
 	"github.com/spf13/viper"
 )
 
 var config *viper.Viper
+var once sync.Once
 
-// Init is an exported method that takes the environment starts the viper
-// (external lib) and returns the configuration struct.
-func Init(env string) {
+func setup(env string) {
+
 	var err error
 	config = viper.New()
 	config.SetConfigType("yaml")
@@ -24,5 +26,12 @@ func Init(env string) {
 }
 
 func GetConfig() *viper.Viper {
+	once.Do(func() {
+		environment := os.Getenv("DEPLOYMENT_ENV")
+		if environment == "" {
+			environment = "development"
+		}
+		setup(environment)
+	})
 	return config
 }

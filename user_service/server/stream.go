@@ -5,7 +5,7 @@ import (
 	"time"
 
 	auth "github.com/Fox520/away_backend/auth"
-	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
+	pb "github.com/Fox520/away_backend/user_service/pb"
 )
 
 func (server *UserServiceServer) StreamUserInfo(req *pb.StreamUserInfoRequest, stream pb.UserService_StreamUserInfoServer) error {

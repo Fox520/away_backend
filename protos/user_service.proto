@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package user.service;
-option go_package =  "github.com/Fox520/away_backend/user_service/pb";
+option go_package =  "./pb";
 
 import "google/protobuf/timestamp.proto";
 

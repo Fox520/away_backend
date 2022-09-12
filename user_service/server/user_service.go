@@ -11,7 +11,7 @@ import (
 	auth "github.com/Fox520/away_backend/auth"
 	"github.com/Fox520/away_backend/user_service/config"
 	db "github.com/Fox520/away_backend/user_service/db/sqlc"
-	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
+	pb "github.com/Fox520/away_backend/user_service/pb"
 	userRepo "github.com/Fox520/away_backend/user_service/repository/user"
 	pq "github.com/lib/pq"
 	"google.golang.org/grpc/codes"

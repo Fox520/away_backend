@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package property.service;
-option go_package = "github.com/Fox520/away_backend/property_service/pb"; //golang
+option go_package = "./pb"; //golang
 
 import "google/protobuf/timestamp.proto";
 // import "C:\\Users\\Asus\\Documents\\prog\\away_backend\\user_service\\protos\\user_service.proto"; // bloomRPC requires full path

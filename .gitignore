@@ -16,3 +16,4 @@
 user_service/user_service
 property_service/property_service
 auth/serviceAccountKey.json
+.DS_Store

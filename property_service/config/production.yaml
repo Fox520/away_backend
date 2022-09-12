@@ -1,5 +1,10 @@
-http_server:
-  port: 10000
+service_account_path: /Users/thomas/Documents/projects/away_backend/auth/serviceAccountKey.json
+
+grpc_server:
+  port: 9001
+
+user_service:
+  address: localhost:9000
 
 redis:
   url: 127.0.0.1:42069
@@ -8,3 +13,5 @@ db:
   username: root
   password: secret
   ip_address: 127.0.0.1
+  pool_max_conns: 10
+  port: 5432

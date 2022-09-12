@@ -9,7 +9,7 @@ import (
 
 	"github.com/Fox520/away_backend/auth"
 	"github.com/Fox520/away_backend/user_service/config"
-	"github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
+	"github.com/Fox520/away_backend/user_service/pb"
 	"github.com/Fox520/away_backend/user_service/server"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"google.golang.org/grpc"
