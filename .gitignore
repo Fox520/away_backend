@@ -15,4 +15,4 @@
 # vendor/
 user_service/user_service
 property_service/property_service
-config/serviceAccountKey.json
+auth/serviceAccountKey.json
