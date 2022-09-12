@@ -2,12 +2,12 @@ module github.com/Fox520/away_backend/user_service
 
 go 1.16
 
-replace github.com/Fox520/away_backend/testhelper => ../testhelper
+// replace github.com/Fox520/away_backend/testhelper => ../testhelper
 
 require (
 	cloud.google.com/go/iam v0.4.0 // indirect
 	github.com/Fox520/away_backend/auth v0.0.0-20210820135334-717789c930c3
-	github.com/Fox520/away_backend/testhelper v0.0.0-00010101000000-000000000000
+	github.com/Fox520/away_backend/testhelper v0.0.0-20220912010839-1cef95415862
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
