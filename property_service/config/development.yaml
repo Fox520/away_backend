@@ -1,0 +1,10 @@
+http_server:
+  port: 10000
+
+redis:
+  url: 127.0.0.1:42069
+
+db:
+  username: root
+  password: secret
+  ip_address: 127.0.0.1

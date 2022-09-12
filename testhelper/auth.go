@@ -65,14 +65,14 @@ func GetOtherUserAuthToken() string {
 func CreateUsers() {
 
 	params := (&fb_auth.UserToCreate{}).Email(mainEmail).DisplayName("Alice").Password("123456").PhotoURL("https://www.example.com/photo.png").Disabled(false)
-	u, err := away_auth.FirebaseAuth.CreateUser(context.Background(), params)
+	u, err := away_auth.GetFirebaseAuthClient().CreateUser(context.Background(), params)
 	if err != nil {
 		log.Fatalf("error creating user 1: %v\n", err)
 	}
 	MainUser = u
 
 	params2 := (&fb_auth.UserToCreate{}).Email(otherEmail).DisplayName("Jane").Password("123456").PhotoURL("https://www.example.com/photo.png").Disabled(false)
-	u, err = away_auth.FirebaseAuth.CreateUser(context.Background(), params2)
+	u, err = away_auth.GetFirebaseAuthClient().CreateUser(context.Background(), params2)
 	if err != nil {
 		log.Fatalf("error creating user 2: %v\n", err)
 	}
@@ -82,19 +82,19 @@ func CreateUsers() {
 
 func DeleteTestUsers() {
 	if MainUser != nil {
-		away_auth.FirebaseAuth.DeleteUser(context.Background(), MainUser.UID)
+		away_auth.GetFirebaseAuthClient().DeleteUser(context.Background(), MainUser.UID)
 
 	} else {
 		// Probably first run
 		uid := getUserId(mainEmail, "123456")
-		away_auth.FirebaseAuth.DeleteUser(context.Background(), uid)
+		away_auth.GetFirebaseAuthClient().DeleteUser(context.Background(), uid)
 	}
 	if OtherUser != nil {
-		away_auth.FirebaseAuth.DeleteUser(context.Background(), OtherUser.UID)
+		away_auth.GetFirebaseAuthClient().DeleteUser(context.Background(), OtherUser.UID)
 
 	} else {
 		uid := getUserId(otherEmail, "123456")
-		away_auth.FirebaseAuth.DeleteUser(context.Background(), uid)
+		away_auth.GetFirebaseAuthClient().DeleteUser(context.Background(), uid)
 	}
 }
 

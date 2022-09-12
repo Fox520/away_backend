@@ -1,0 +1,26 @@
+version: "1"
+packages:
+  - name: "db" # go package name
+    path: "./db/sqlc" # generated go code
+    queries: "./db/query/" # where to look for sql query files
+    schema: "../db/migration" # db create sql
+    engine: "postgresql"
+    emit_json_tags: true
+    emit_prepared_queries: true
+    emit_interface: false
+overrides:
+  - column: "properties.town"
+    go_type:
+       type: "string"
+       pointer: true
+    nullable: true
+  - column: "properties.p_description"
+    go_type:
+       type: "string"
+       pointer: true
+    nullable: true
+  - column: "properties.sharing_price"
+    go_type:
+       type: "float64"
+       pointer: true
+    nullable: true

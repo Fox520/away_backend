@@ -1,3 +1,6 @@
+CREATE EXTENSION IF NOT EXISTS cube;
+CREATE EXTENSION IF NOT EXISTS earthdistance;
+
 CREATE TABLE IF NOT EXISTS subscription_status (
     s_status VARCHAR(255) PRIMARY KEY,
     s_description VARCHAR(255) NOT NULL
@@ -7,12 +10,12 @@ CREATE TABLE IF NOT EXISTS users(
     id TEXT,
     username TEXT NOT NULL,
     email VARCHAR(255) NOT NULL,
-    device_token TEXT,
-    bio TEXT,
-    verified BOOLEAN,
+    device_token TEXT NOT NULL,
+    bio TEXT NOT NULL,
+    verified BOOLEAN DEFAULT false NOT NULL,
     s_status VARCHAR(255) NOT NULL,
-    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc'),
-    profile_picture_url VARCHAR,
+    profile_picture_url VARCHAR NOT NULL,
+    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc') NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT fk_subscription_status
       FOREIGN KEY(s_status) 
@@ -48,21 +51,21 @@ CREATE TABLE IF NOT EXISTS user_verifications (
 
 CREATE TABLE IF NOT EXISTS property_usage (
     id smallint  GENERATED ALWAYS AS IDENTITY,
-    p_usage text,
+    p_usage text NOT NULL,
     usage_description text,
     PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS property_type (
     id smallint GENERATED ALWAYS AS IDENTITY,
-    p_type text,
+    p_type text NOT NULL,
     type_description text,
     PRIMARY KEY (id)
 );
 
 CREATE TABLE IF NOT EXISTS property_category (
     id smallint GENERATED ALWAYS AS IDENTITY,
-    p_category text,
+    p_category text NOT NULL,
     category_description text,
     PRIMARY KEY (id)
 );
@@ -74,7 +77,7 @@ CREATE TABLE IF NOT EXISTS property_combinations (
 );
 
 CREATE TABLE IF NOT EXISTS properties (
-    id uuid DEFAULT uuid_generate_v4(),
+    id uuid DEFAULT gen_random_uuid(),
     user_id text NOT NULL,
     property_type_id smallint NOT NULL,
     property_category_id smallint NOT NULL,
@@ -86,16 +89,16 @@ CREATE TABLE IF NOT EXISTS properties (
     title text NOT NULL,
     p_description text,
     currency text NOT NULL,
-    available boolean DEFAULT true,
+    available boolean DEFAULT true NOT NULL,
     price numeric NOT NULL,
     deposit numeric NOT NULL,
     sharing_price numeric DEFAULT 0.000000,
-    promoted boolean DEFAULT false,
-    posted_date timestamp without time zone default (now() at time zone 'utc'),
-    pets_allowed boolean DEFAULT false,
-    free_wifi boolean DEFAULT false,
-    water_included boolean,
-    electricity_included boolean,
+    promoted boolean DEFAULT false NOT NULL,
+    posted_date timestamp without time zone default (now() at time zone 'utc') NOT NULL,
+    pets_allowed boolean DEFAULT false NOT NULL,
+    free_wifi boolean DEFAULT false NOT NULL,
+    water_included boolean DEFAULT false NOT NULL,
+    electricity_included boolean DEFAULT false NOT NULL,
     latitude numeric,
     longitude numeric,
     PRIMARY KEY(id),
@@ -118,9 +121,9 @@ CREATE TABLE IF NOT EXISTS properties (
 );
 
 CREATE TABLE IF NOT EXISTS property_photos (
-    id uuid DEFAULT uuid_generate_v4(),
-    property_id uuid,
-    p_url text,
+    id uuid DEFAULT gen_random_uuid(),
+    property_id uuid NOT NULL,
+    p_url text NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT fk_property
       FOREIGN KEY(property_id) 
@@ -130,11 +133,11 @@ CREATE TABLE IF NOT EXISTS property_photos (
 
 CREATE TABLE IF NOT EXISTS featured_areas (
     id serial,
-    title text,
-    photo_url text,
-    latitude numeric,
-    longitude numeric,
-    country text,
+    title text NOT NULL,
+    photo_url text NOT NULL,
+    latitude numeric NOT NULL,
+    longitude numeric NOT NULL,
+    country text NOT NULL,
     PRIMARY KEY (id)
 );
 
@@ -157,18 +160,18 @@ FOR EACH ROW EXECUTE PROCEDURE create_user_subscription();
 -- reports
 CREATE TABLE IF NOT EXISTS user_report_reasons (
     r_reason VARCHAR(255) PRIMARY KEY,
-    r_description TEXT
+    r_description TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS property_report_reasons (
     r_reason VARCHAR(255) PRIMARY KEY,
-    r_description TEXT
+    r_description TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_reports (
     reporter_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     reported_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc'),
+    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc') NOT NULL,
     r_reason VARCHAR(255) NOT NULL,
     CONSTRAINT user_reports_pkey PRIMARY KEY (reporter_user_id, reported_user_id),
     CONSTRAINT fk_reason
@@ -180,7 +183,7 @@ CREATE TABLE IF NOT EXISTS user_reports (
 CREATE TABLE IF NOT EXISTS property_reports (
     reporter_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     reported_property_id uuid REFERENCES properties(id) ON DELETE CASCADE,
-    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc'),
+    createdAt TIMESTAMP without time zone DEFAULT (now() at time zone 'utc') NOT NULL,
     r_reason VARCHAR(255) NOT NULL,
     CONSTRAINT property_reports_pkey PRIMARY KEY (reporter_user_id, reported_property_id),
     CONSTRAINT fk_reason
@@ -199,42 +202,54 @@ CREATE TABLE IF NOT EXISTS bookings (
     CONSTRAINT user_product_pkey PRIMARY KEY (user_id, property_id)
 );
 
--- stream trigger
--- https://coussej.github.io/2015/09/15/Listening-to-generic-JSON-notifications-from-PostgreSQL-in-Go/
-CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
 
-    DECLARE 
-        data json;
-        notification json;
-        event_name text;
-    
-    BEGIN
-        event_name := TG_ARGV[0];
-        -- Convert the old or new row to JSON, based on the kind of action.
-        -- Action = DELETE?             -> OLD row
-        -- Action = INSERT or UPDATE?   -> NEW row
-        IF (TG_OP = 'DELETE') THEN
-            data = row_to_json(OLD);
-        ELSE
-            data = row_to_json(NEW);
-        END IF;
-        
-        -- Contruct the notification as a JSON string.
-        notification = json_build_object(
-                          'table',TG_TABLE_NAME,
-                          'action', TG_OP,
-                          'data', data);
-        
-                        
-        -- Execute pg_notify(channel, notification)
-        PERFORM pg_notify(event_name,notification::text);
-        
-        -- Result is ignored since this is an AFTER trigger
-        RETURN NULL; 
-    END;
-    
-$$ LANGUAGE plpgsql;
+--
+-- PostgreSQL database dump
+--
 
-CREATE TRIGGER users_notify_event
-AFTER UPDATE ON users
-    FOR EACH ROW EXECUTE PROCEDURE notify_event('user_events');
+-- Dumped from database version 13.3
+-- Dumped by pg_dump version 13.3
+
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (1, 'Flat');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (2, 'Apartment');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (3, 'House');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (4, 'Townhouse');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (5, 'Villa');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (6, 'Inside room');
+INSERT INTO property_category (id, p_category) OVERRIDING SYSTEM VALUE VALUES (7, 'Outside room');
+
+
+--
+-- Data for Name: property_type; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO property_type (id, p_type) OVERRIDING SYSTEM VALUE VALUES (1, 'Flat');
+INSERT INTO property_type (id, p_type) OVERRIDING SYSTEM VALUE VALUES (2, 'House');
+INSERT INTO property_type (id, p_type) OVERRIDING SYSTEM VALUE VALUES (3, 'Room');
+
+
+--
+-- Data for Name: property_usage; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO property_usage (id, p_usage) OVERRIDING SYSTEM VALUE VALUES (1, 'Entire place');
+INSERT INTO property_usage (id, p_usage) OVERRIDING SYSTEM VALUE VALUES (2, 'Private room');
+INSERT INTO property_usage (id, p_usage) OVERRIDING SYSTEM VALUE VALUES (3, 'Shared room');
+
+-- property combinations
+
+insert into property_combinations( type_id, category_id) values(1, 1);
+insert into property_combinations( type_id, category_id) values(1, 2);
+
+
+insert into property_combinations( type_id, category_id) values(2, 3);
+insert into property_combinations( type_id, category_id) values(2, 4);
+insert into property_combinations( type_id, category_id) values(2, 5);
+
+insert into property_combinations( type_id, category_id) values(3, 6);
+insert into property_combinations( type_id, category_id) values(3, 7);
+--
+-- Data for Name: properties; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+insert into subscription_status( s_status, s_description) values('NONE', 'No subscription');

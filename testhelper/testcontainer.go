@@ -4,31 +4,31 @@ import (
 	"context"
 	"fmt"
 
-	myconfig "github.com/Fox520/away_backend/config"
 	"github.com/docker/go-connections/nat"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func CreateTestContainer(ctx context.Context, cfg myconfig.Config) (testcontainers.Container, string, error) {
+func CreateTestContainer(ctx context.Context) (testcontainers.Container, string, error) {
 	var env = map[string]string{
-		"POSTGRES_PASSWORD": cfg.DBPassword,
-		"POSTGRES_USER":     "postgres",
-		"POSTGRES_DB":       cfg.DBName,
+		"POSTGRES_PASSWORD": "secret",
+		"POSTGRES_USER":     "root",
+		"POSTGRES_DB":       "away",
 	}
 	var port = "5432/tcp"
 	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://postgres:%s@localhost:%s/%s?sslmode=disable", cfg.DBPassword, port.Port(), cfg.DBName)
+		return fmt.Sprintf("postgres://root:%s@localhost:%s/%s?sslmode=disable", "secret", port.Port(), "away")
 	}
 
 	req := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "postgres:latest",
-			ExposedPorts: []string{port},
-			Cmd:          []string{"postgres", "-c", "fsync=off"},
-			Env:          env,
-			WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL),
+			Image:           "postgres:14-alpine",
+			ExposedPorts:    []string{port},
+			Cmd:             []string{"postgres", "-c", "fsync=off"},
+			Env:             env,
+			WaitingFor:      wait.ForSQL(nat.Port(port), "postgres", dbURL),
+			AlwaysPullImage: false,
 		},
 		Started: true,
 	}

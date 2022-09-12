@@ -9,8 +9,9 @@ import (
 	"os"
 	"testing"
 
+	config "github.com/Fox520/away_backend/user_service/config"
+
 	auth "github.com/Fox520/away_backend/auth"
-	config "github.com/Fox520/away_backend/config"
 	testhelper "github.com/Fox520/away_backend/testhelper"
 	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
 	server "github.com/Fox520/away_backend/user_service/server"
@@ -31,39 +32,45 @@ func bufDialer(context.Context, string) (net.Conn, error) {
 
 func TestMain(m *testing.M) {
 
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Overwrite since docker is on localhost
-	cfg.DBHost = "localhost"
-
 	// Setup database
 	ctx := context.Background()
-	container, port, err := testhelper.CreateTestContainer(ctx, cfg)
+	container, port, err := testhelper.CreateTestContainer(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer container.Terminate(ctx)
-
+	config := config.GetConfig()
+	config.Set("db.port", port)
+	fmt.Println(config.GetString("db.port"))
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=root "+
+		"password=secret dbname=away sslmode=disable",
+		"localhost", config.GetString("db.port"))
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	if err := db.Ping(); err != nil {
+		panic(err)
+	}
 	// migration
-	url := fmt.Sprintf("postgres://postgres:%s@localhost:%s/%s?sslmode=disable", cfg.DBPassword, port, cfg.DBName)
-	db, _ := sql.Open("postgres", url)
-	mig, _ := testhelper.NewPgMigrator(db)
-
-	_ = mig.Up()
-
+	mig, err := testhelper.NewPgMigrator(db)
+	if err != nil {
+		panic(err)
+	}
+	err = mig.Up()
+	if err != nil {
+		panic(err)
+	}
 	lis = bufconn.Listen(1024 * 1024)
 
 	// Overwrite the port with that of the container
-	cfg.DBPort = port
 
 	// Start server
 	grpcServer := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(auth.AuthInterceptor)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(auth.AuthInterceptor)))
+		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(auth.EnsureFirebaseToken)),
+		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(auth.EnsureFirebaseToken)))
 
-	pb.RegisterUserServiceServer(grpcServer, server.NewUserServiceServer(cfg))
+	pb.RegisterUserServiceServer(grpcServer, server.NewUserServiceServer())
 	go func() {
 		// In memory connections
 		if err := grpcServer.Serve(lis); err != nil {
@@ -192,20 +199,12 @@ func TestUpdateUser(t *testing.T) {
 
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "token", testhelper.GetMainUserAuthToken())
 
-	t.Run("Empty variables", func(t *testing.T) {
-		_, err = client.UpdateUser(ctx, &pb.UpdateUserRequest{})
-		st, ok := status.FromError(err)
-		if ok && st.Code() != codes.InvalidArgument {
-			t.Fatal("Empty variables went through: " + fmt.Sprint(st.Code()))
-		}
-	})
-
-	t.Run("Actually update", func(t *testing.T) {
-		_, err = client.UpdateUser(ctx, &pb.UpdateUserRequest{UserName: "sample", Bio: mainUserBio, DeviceToken: mainUserDeviceToken})
+	t.Run("Update user", func(t *testing.T) {
+		_, err = client.UpdateUser(ctx, &pb.UpdateUserRequest{UserName: "sample"})
 		if err != nil {
 			t.Fatal("Could not update user")
 		}
-		// Check if new username reflects
+		// Check if new username reflects and other fields not affected
 		res, err := client.GetUser(ctx, &pb.GetUserRequest{Id: testhelper.MainUser.UID})
 		if err != nil {
 			t.Fatal(err)
@@ -215,6 +214,9 @@ func TestUpdateUser(t *testing.T) {
 		case *pb.GetUserResponse_User:
 			if u.User.UserName != "sample" {
 				t.Fatal("Updated username does not reflect")
+			}
+			if u.User.Bio != mainUserBio {
+				t.Fatal("Updating username affected bio")
 			}
 		case *pb.GetUserResponse_MinimalUser:
 			t.Fatal("Wrong message returned")
@@ -243,8 +245,9 @@ func TestDeleteUser(t *testing.T) {
 		}
 		_, err = client.GetUser(ctx, &pb.GetUserRequest{})
 		st, ok := status.FromError(err)
-		if ok && st.Code() != codes.Unauthenticated {
-			t.Fatal("User not deleted: " + fmt.Sprint(st.Code()))
+		fmt.Printf("st: %v\n", st)
+		if ok && st.Code() != codes.NotFound {
+			t.Fatal("User not deleted: ", st.Code(), st.Message())
 		}
 	})
 
@@ -256,8 +259,9 @@ func TestDeleteUser(t *testing.T) {
 		}
 		_, err = client.GetUser(ctxOther, &pb.GetUserRequest{})
 		st, ok := status.FromError(err)
-		if ok && st.Code() != codes.Unauthenticated {
-			t.Fatal("User not deleted: " + fmt.Sprint(st.Code()))
+		if ok && st.Code() != codes.NotFound {
+			t.Fatal("User not deleted: ", st.Code(), st.Message())
+
 		}
 	})
 

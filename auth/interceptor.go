@@ -17,10 +17,8 @@ const ContextEmailKey string = "auth.email"
 const ContextUIDKey string = "auth.uid"
 const ContextTokenKey string = "token"
 
-var FirebaseAuth = SetupFirebaseAuthClient()
-
 // Retrieves and authenticates Firebase token from ctx
-func AuthInterceptor(ctx context.Context) (context.Context, error) {
+func EnsureFirebaseToken(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		logger.Print("No metadata found")
@@ -34,7 +32,8 @@ func AuthInterceptor(ctx context.Context) (context.Context, error) {
 	}
 	token := tokenSlice[0]
 	// Uncomment for token verification to take place
-	authToken, err := FirebaseAuth.VerifyIDToken(context.Background(), token)
+	// authToken, err := GetFirebaseAuthClient().VerifyIDToken(context.Background(), token)
+	authToken, err := GetFirebaseAuthClient().VerifyIDToken(context.Background(), token)
 	if err != nil {
 		logger.Print("Token verification error: ", err)
 		return nil, status.Error(codes.Unauthenticated, err.Error())

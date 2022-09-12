@@ -1,39 +1,27 @@
-// protoc --go_out=.\\ --go-grpc_out=.\\ -I=protos protos/user_service.proto
+// $ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+// $ protoc --go_out=./ --go-grpc_out=./ -I=../protos ../protos/user_service.proto
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
-	"net"
 	"os"
 
-	auth "github.com/Fox520/away_backend/auth"
-	config "github.com/Fox520/away_backend/config"
-	pb "github.com/Fox520/away_backend/user_service/github.com/Fox520/away_backend/user_service/pb"
-	server "github.com/Fox520/away_backend/user_service/server"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"google.golang.org/grpc"
+	grpc_server "github.com/Fox520/away_backend/user_service/grpc_server"
 )
 
-var logger = log.New(os.Stderr, "user_service_main: ", log.LstdFlags|log.Lshortfile)
-
 func main() {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		logger.Fatal("Config load failed", err)
+	log.SetFlags(log.LstdFlags | log.Llongfile)
+	environment := os.Getenv("DEPLOYMENT_ENV")
+	if environment == "" {
+		environment = "development"
 	}
-	lis, err := net.Listen("tcp", ":9000")
-	if err != nil {
-		logger.Fatal("Failed to listen on port 9000", err)
+	log.Println("Running in: ", environment)
+	flag.Usage = func() {
+		fmt.Println("Usage: server -e {mode}")
+		os.Exit(1)
 	}
-
-	grpcServer := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(auth.AuthInterceptor)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(auth.AuthInterceptor)))
-
-	pb.RegisterUserServiceServer(grpcServer, server.NewUserServiceServer(cfg))
-
-	if err := grpcServer.Serve(lis); err != nil {
-		logger.Fatal("Failed to serve gRPC server", err)
-	}
-
+	flag.Parse()
+	grpc_server.Init()
 }
