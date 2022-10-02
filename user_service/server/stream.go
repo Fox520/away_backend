@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"time"
 
 	auth "github.com/Fox520/away_backend/auth"
@@ -27,7 +28,6 @@ func (server *UserServiceServer) StreamUserInfo(req *pb.StreamUserInfoRequest, s
 	// NB: subscription status description is not in `users`, so events from the table will not include it
 	// Store it in-memory for use in responses
 	currentSubscriptionStatusDescription := res.GetUser().SubscriptionStatusDescription
-
 	for {
 		select {
 		case n := <-server.usersDbListener.Notify:
@@ -47,6 +47,7 @@ func (server *UserServiceServer) StreamUserInfo(req *pb.StreamUserInfoRequest, s
 				Bio:                extractedUser.Bio,
 				DeviceToken:        extractedUser.DeviceToken,
 				Verified:           extractedUser.Verified,
+				ProfilePictureUrl:  extractedUser.ProfilePictureUrl,
 				SubscriptionStatus: extractedUser.SubscriptionStatus,
 				// Retrieve status description from db if it changed
 				SubscriptionStatusDescription: currentSubscriptionStatusDescription,
@@ -60,11 +61,11 @@ func (server *UserServiceServer) StreamUserInfo(req *pb.StreamUserInfoRequest, s
 				currentSubscriptionStatus = resultUser.SubscriptionStatus
 				currentSubscriptionStatusDescription = resultUser.SubscriptionStatusDescription
 
-				// todo: create getUser func with direct db access
 				res, err := server.GetUser(stream.Context(), &pb.GetUserRequest{
 					Id: userId,
 				})
 				if err != nil {
+					log.Println(err)
 					return err
 				}
 				resultUser = *res.GetUser()

@@ -13,7 +13,7 @@ import (
 	db "github.com/Fox520/away_backend/user_service/db/sqlc"
 	pb "github.com/Fox520/away_backend/user_service/pb"
 	userRepo "github.com/Fox520/away_backend/user_service/repository/user"
-	pq "github.com/lib/pq"
+	"github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -33,6 +33,7 @@ func NewUserServiceServer() *UserServiceServer {
 	config := config.GetConfig()
 
 	reportProblem := func(ev pq.ListenerEventType, err error) {
+		log.Println(ev)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -42,11 +43,11 @@ func NewUserServiceServer() *UserServiceServer {
 		config.GetString("db.ip_address"), config.GetString("db.port"), config.GetString("db.username"), config.GetString("db.password"))
 	// Create listener for events which occur in the database
 	usersListener := pq.NewListener(connectionString, 10*time.Second, time.Minute, reportProblem)
-	// if err := usersListener.Ping(); err != nil {
-	// 	panic(err)
-	// }
 	err := usersListener.Listen("user_events")
 	if err != nil {
+		panic(err)
+	}
+	if err := usersListener.Ping(); err != nil {
 		panic(err)
 	}
 

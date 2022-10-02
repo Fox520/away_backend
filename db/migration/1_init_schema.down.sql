@@ -19,3 +19,5 @@ DROP TABLE IF EXISTS subscriptions;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS subscription_status;
 -- extension
+DROP FUNCTION IF EXISTS notify_event;
+DROP TRIGGER IF EXISTS users_notify_event;
